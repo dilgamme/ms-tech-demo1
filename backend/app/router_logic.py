@@ -240,18 +240,18 @@ Return ONLY valid JSON."""
             raise
 
     async def _call_reasoning_model(self, prompt: str, messages: list = None) -> str:
-        """Call GPT-5-Pro reasoning model"""
+        """Call GPT-5-Pro reasoning model through the Responses API."""
         
         message_list = list(messages or [])
         message_list.append({"role": "user", "content": prompt})
         
         try:
-            response = self.client.chat.completions.create(
+            response = self.client.responses.create(
                 model=self.reasoning_model,
-                messages=message_list,
-                max_completion_tokens=4000
+                input=message_list,
+                max_output_tokens=4000
             )
-            return response.choices[0].message.content
+            return self._extract_response_text(response)
         except Exception as e:
             logger.error(f"Reasoning model error: {e}")
             raise
@@ -267,6 +267,23 @@ Return ONLY valid JSON."""
 
     def _contains_any(self, text: str, patterns: tuple[str, ...]) -> bool:
         return any(pattern in text for pattern in patterns)
+
+    def _extract_response_text(self, response) -> str:
+        output_text = getattr(response, "output_text", None)
+        if output_text:
+            return output_text
+
+        text_parts = []
+        for item in getattr(response, "output", []) or []:
+            for content in getattr(item, "content", []) or []:
+                text = getattr(content, "text", None)
+                if text:
+                    text_parts.append(text)
+
+        if text_parts:
+            return "\n".join(text_parts)
+
+        raise ValueError("Responses API returned no text output")
 
 # Global router instance
 _router = None
