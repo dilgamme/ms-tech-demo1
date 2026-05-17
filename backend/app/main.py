@@ -27,7 +27,7 @@ app = FastAPI(
 allowed_origins = [
     "http://localhost:3000",
     "http://localhost:5173",  # Vite default
-    "https://mstech-demo-ui.azurestaticapps.net",
+    "https://orange-hill-0db554803.7.azurestaticapps.net",
     settings.FRONTEND_URL,
 ]
 

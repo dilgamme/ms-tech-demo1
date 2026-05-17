@@ -167,7 +167,7 @@ RESOURCES TO CREATE
   1. Static Web App
      Name: mstech-demo-ui
      Region: westeurope
-     URL: https://mstech-demo-ui.azurestaticapps.net
+     URL: https://orange-hill-0db554803.7.azurestaticapps.net
 
 MODELS DEPLOYED (In AI Foundry)
   ✓ DeepSeek-V4-Flash
@@ -267,7 +267,7 @@ IMPORTANT URLS
   Project: /Users/dilgamsharifov/Documents/ms-tech-demo1/
   GitHub: (Create at https://github.com/new)
   Backend: https://mstech-demo-router-api.azurewebsites.net
-  Frontend: https://mstech-demo-ui.azurestaticapps.net
+  Frontend: https://orange-hill-0db554803.7.azurestaticapps.net
 
 KEY COMMANDS
   Check App Service:

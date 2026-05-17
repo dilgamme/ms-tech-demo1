@@ -74,8 +74,8 @@ Add these secrets:
 | `AZURE_OPENAI_ENDPOINT` | https://mstech-demo-resource.cognitiveservices.azure.com/ |
 | `AZURE_OPENAI_KEY` | Set rotated key directly on App Service |
 | `VITE_API_URL` | https://mstech-demo-router-api.azurewebsites.net |
-| `AZURE_APP_SERVICE_PUBLISH_PROFILE` | (See below) |
-| `AZURE_STATIC_WEB_APPS_API_TOKEN` | (See below) |
+| `AzureAppService_PublishProfile_44751b3e1cc1412289a5ed70da06ca2f` | Created by Azure |
+| `AZURE_STATIC_WEB_APPS_API_TOKEN_ORANGE_HILL_0DB554803` | Created by Azure |
 
 **Get App Service Publish Profile:**
 ```bash
@@ -85,7 +85,7 @@ az webapp deployment list-publishing-credentials \
   --query publishingCredentials -o json
 ```
 
-Copy the entire JSON output and paste as `AZURE_APP_SERVICE_PUBLISH_PROFILE` secret.
+Azure App Service GitHub Actions integration created the publish profile secret automatically.
 
 ### Step 4: Create Static Web App (Frontend)
 ```bash
@@ -107,7 +107,7 @@ az staticwebapp secrets list \
   --query "properties.apiToken" -o tsv
 ```
 
-Add to GitHub Secrets as `AZURE_STATIC_WEB_APPS_API_TOKEN`.
+Azure Static Web Apps GitHub integration created the Static Web Apps token secret automatically.
 
 ### Step 5: Deploy via GitHub Actions
 Once secrets are added:
@@ -139,7 +139,7 @@ curl -X POST https://mstech-demo-router-api.azurewebsites.net/api/routePrompt \
 
 ### Visit Frontend
 ```
-https://mstech-demo-ui.azurestaticapps.net
+https://orange-hill-0db554803.7.azurestaticapps.net
 ```
 
 ---

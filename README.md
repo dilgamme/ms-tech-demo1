@@ -105,8 +105,8 @@ az deployment group create \
 - `AZURE_OPENAI_ENDPOINT`: Your Azure OpenAI endpoint
 - `AZURE_OPENAI_KEY`: Your Azure OpenAI API key
 - `VITE_API_URL`: Your backend App Service URL
-- `AZURE_STATIC_WEB_APPS_API_TOKEN`: Token from Static Web App
-- `AZURE_APP_SERVICE_PUBLISH_PROFILE`: Publish profile from App Service
+- `AZURE_STATIC_WEB_APPS_API_TOKEN_ORANGE_HILL_0DB554803`: Created by Azure Static Web Apps GitHub integration
+- `AzureAppService_PublishProfile_44751b3e1cc1412289a5ed70da06ca2f`: Created by Azure App Service GitHub Actions integration
 
 **Push to Deploy:**
 ```bash
@@ -169,7 +169,7 @@ AZURE_OPENAI_KEY=your-api-key
 DEEPSEEK_MODEL=DeepSeek-V4-Flash
 ROUTER_MODEL=gpt-5.4-mini
 REASONING_MODEL=gpt-5-pro-reasoning
-FRONTEND_URL=https://mstech-demo-ui.azurestaticapps.net
+FRONTEND_URL=https://orange-hill-0db554803.7.azurestaticapps.net
 ```
 
 **Frontend (.env.local):**

@@ -44,12 +44,12 @@ Go to: **GitHub Repo → Settings → Secrets and variables → Actions**
 
 - [ ] Confirm Azure OpenAI runtime settings are configured directly on App Service
 
-- [ ] Add `VITE_API_URL`
+- [x] Configure `VITE_API_URL` in Static Web Apps workflow
   ```
   https://mstech-demo-router-api.azurewebsites.net
   ```
 
-- [ ] Add `AZURE_APP_SERVICE_PUBLISH_PROFILE`
+- [x] Add App Service publish profile secret via Azure GitHub Actions integration
   Get with:
   ```bash
   az webapp deployment list-publishing-credentials \
@@ -58,7 +58,7 @@ Go to: **GitHub Repo → Settings → Secrets and variables → Actions**
     --query publishingCredentials -o json
   ```
 
-- [ ] Add `AZURE_STATIC_WEB_APPS_API_TOKEN`
+- [x] Add Static Web Apps API token via Azure GitHub integration
   (Get after creating Static Web App)
 
 ## Phase 6: Create Static Web App ⏳ NEXT STEP
@@ -81,7 +81,7 @@ az staticwebapp secrets list \
   --query "properties.apiToken" -o tsv
 ```
 
-- [ ] Add Static Web App token to GitHub Secrets as `AZURE_STATIC_WEB_APPS_API_TOKEN`
+- [x] Static Web App token is already stored as `AZURE_STATIC_WEB_APPS_API_TOKEN_ORANGE_HILL_0DB554803`
 
 ## Phase 7: Deploy ⏳ FINAL STEP
 - [ ] Make any change and commit
@@ -112,7 +112,7 @@ az staticwebapp secrets list \
 
 - [ ] Visit frontend
   ```
-  https://mstech-demo-ui.azurestaticapps.net
+  https://orange-hill-0db554803.7.azurestaticapps.net
   ```
 
 - [ ] Test chat functionality

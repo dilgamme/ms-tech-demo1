@@ -18,8 +18,8 @@ az webapp deployment list-publishing-credentials \
 ```
 
 ```
-Name: AZURE_APP_SERVICE_PUBLISH_PROFILE
-Value: (contents of publish-profile.json)
+Name: AzureAppService_PublishProfile_44751b3e1cc1412289a5ed70da06ca2f
+Value: Already created by Azure App Service GitHub Actions integration.
 ```
 
 ## Frontend Deployment
@@ -34,24 +34,24 @@ az rest --method post \
 ```
 
 ```
-Name: AZURE_STATIC_WEB_APPS_API_TOKEN
-Value: (token from above)
+Name: AZURE_STATIC_WEB_APPS_API_TOKEN_ORANGE_HILL_0DB554803
+Value: Already created by Azure Static Web Apps GitHub integration.
 ```
 
 ## Frontend API URL
 
 ```
 Name: VITE_API_URL
-Value: https://mstech-demo-router-api.azurewebsites.net
+Value: Not required as a repository secret; the generated Static Web Apps workflow sets it as build-time environment.
 ```
 
 ## All Secrets Summary
 
 | Secret Name | Value |
 |---|---|
-| AZURE_APP_SERVICE_PUBLISH_PROFILE | {publish profile JSON} |
-| AZURE_STATIC_WEB_APPS_API_TOKEN | {static app token} |
-| VITE_API_URL | https://mstech-demo-router-api.azurewebsites.net |
+| AzureAppService_PublishProfile_44751b3e1cc1412289a5ed70da06ca2f | Created by Azure |
+| AZURE_STATIC_WEB_APPS_API_TOKEN_ORANGE_HILL_0DB554803 | Created by Azure |
+| VITE_API_URL | Set in workflow env |
 
 ---
 
