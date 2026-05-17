@@ -4,7 +4,7 @@ from contextlib import asynccontextmanager
 import logging
 
 from app.config import settings
-from app.router import router_api
+from app.router.api import router as route_prompt_router
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -40,7 +40,7 @@ app.add_middleware(
 )
 
 # Include router
-app.include_router(router_api.router)
+app.include_router(route_prompt_router)
 
 @app.get("/health")
 async def health():
