@@ -8,6 +8,7 @@ from app.models import RoutingResponse
 logger = logging.getLogger(__name__)
 
 DEEPSEEK_INTENTS = {"translation", "summary", "simple"}
+ROUTER_INTENTS = {"realtime"}
 REASONING_INTENTS = {"analysis", "code", "math", "planning", "reasoning"}
 
 TRANSLATION_PATTERNS = (
@@ -60,6 +61,30 @@ REASONING_PATTERNS = (
     "optimize",
 )
 
+REALTIME_PATTERNS = (
+    "real time",
+    "real-time",
+    "realtime",
+    "live data",
+    "current",
+    "latest",
+    "today",
+    "right now",
+    "now",
+    "this week",
+    "this month",
+    "recent",
+    "news",
+    "stock price",
+    "share price",
+    "crypto price",
+    "exchange rate",
+    "weather",
+    "score",
+    "standings",
+    "schedule",
+)
+
 class ModelRouter:
     def __init__(self):
         endpoint = settings.AZURE_OPENAI_ENDPOINT.rstrip("/")
@@ -84,13 +109,23 @@ class ModelRouter:
             if intent_classification is None:
                 intent_classification = await self._classify_intent(prompt)
             
-            if intent_classification["should_use_reasoning"]:
+            route = intent_classification["route"]
+
+            if route == "reasoning":
                 response = await self._call_reasoning_model(prompt, messages)
                 return RoutingResponse(
                     modelUsed=self.reasoning_model,
                     reason=intent_classification["reason"],
                     answer=response
                 )
+            if route == "router":
+                response = await self._call_router_model(prompt, messages)
+                return RoutingResponse(
+                    modelUsed=self.router_model,
+                    reason=intent_classification["reason"],
+                    answer=response
+                )
+
             else:
                 response = await self._call_deepseek_model(prompt, messages)
                 return RoutingResponse(
@@ -113,9 +148,17 @@ class ModelRouter:
         text = prompt.strip().lower()
         word_count = len(text.split())
 
+        if self._contains_any(text, REALTIME_PATTERNS):
+            return {
+                "route": "router",
+                "reason": "Rule match: real-time/current data → GPT-5-mini",
+                "intent": "realtime",
+                "confidence": 0.9
+            }
+
         if self._contains_any(text, TRANSLATION_PATTERNS):
             return {
-                "should_use_reasoning": False,
+                "route": "deepseek",
                 "reason": "Rule match: translation → DeepSeek",
                 "intent": "translation",
                 "confidence": 0.95
@@ -123,7 +166,7 @@ class ModelRouter:
 
         if self._contains_any(text, SUMMARY_PATTERNS) and word_count < 900:
             return {
-                "should_use_reasoning": False,
+                "route": "deepseek",
                 "reason": "Rule match: summary → DeepSeek",
                 "intent": "summary",
                 "confidence": 0.9
@@ -131,7 +174,7 @@ class ModelRouter:
 
         if self._contains_any(text, REASONING_PATTERNS):
             return {
-                "should_use_reasoning": True,
+                "route": "reasoning",
                 "reason": "Rule match: complex reasoning → GPT-5-Pro",
                 "intent": "reasoning",
                 "confidence": 0.9
@@ -139,7 +182,7 @@ class ModelRouter:
 
         if word_count <= 18 and (text.endswith("?") or self._contains_any(text, SIMPLE_PATTERNS)):
             return {
-                "should_use_reasoning": False,
+                "route": "deepseek",
                 "reason": "Rule match: short/simple query → DeepSeek",
                 "intent": "simple",
                 "confidence": 0.85
@@ -152,6 +195,7 @@ class ModelRouter:
         Classify prompt intent:
         - Translation → DeepSeek (fast, cheap)
         - Simple/Summary → DeepSeek
+        - Real-time/current-data questions → GPT-5-mini
         - Complex/Reasoning → GPT-5-Pro
         """
         
@@ -161,14 +205,15 @@ Prompt: "{prompt}"
 
 Respond with only one JSON object:
 {{
-  "intent": "translation|summary|simple|analysis|code|math|planning|reasoning",
+  "intent": "translation|summary|simple|realtime|analysis|code|math|planning|reasoning",
   "confidence": 0.0-1.0,
-  "route": "deepseek|reasoning",
+  "route": "deepseek|router|reasoning",
   "reason": "short explanation"
 }}
 
 Rules:
 - Translation, short summaries, simple factual questions, definitions, and brief explanations: deepseek
+- Current/latest/real-time/live-data questions, including news, prices, weather, sports scores, recent events, or anything where freshness matters: router
 - Multi-step analysis, architecture, planning, debugging, math/logic, code generation, code review, and optimization: reasoning
 - If the user asks for tradeoffs, a plan, root cause, or a deep comparison: reasoning
 
@@ -187,14 +232,21 @@ Return ONLY valid JSON."""
             route = str(classification.get("route", "")).lower()
             intent = classification.get("intent", "simple")
             confidence = float(classification.get("confidence", 0.0))
-            should_use_reasoning = route == "reasoning" or intent in REASONING_INTENTS
+            selected_route = route
+            if intent in REASONING_INTENTS:
+                selected_route = "reasoning"
+            if intent in ROUTER_INTENTS:
+                selected_route = "router"
             if intent in DEEPSEEK_INTENTS:
-                should_use_reasoning = False
+                selected_route = "deepseek"
+            if selected_route not in {"deepseek", "router", "reasoning"}:
+                selected_route = "deepseek"
             
             reason_map = {
                 "translation": "Classifier: translation → DeepSeek",
                 "summary": "Classifier: summary → DeepSeek",
                 "simple": "Classifier: simple query → DeepSeek",
+                "realtime": "Classifier: real-time/current data → GPT-5-mini",
                 "analysis": "Classifier: analysis → GPT-5-Pro",
                 "code": "Classifier: code task → GPT-5-Pro",
                 "math": "Classifier: math/logic → GPT-5-Pro",
@@ -204,10 +256,15 @@ Return ONLY valid JSON."""
             
             reason = reason_map.get(intent)
             if not reason:
-                reason = "Classifier: complex task → GPT-5-Pro" if should_use_reasoning else "Classifier: cost-optimized route → DeepSeek"
+                route_labels = {
+                    "deepseek": "cost-optimized route → DeepSeek",
+                    "router": "freshness-sensitive route → GPT-5-mini",
+                    "reasoning": "complex task → GPT-5-Pro"
+                }
+                reason = f"Classifier: {route_labels[selected_route]}"
             
             return {
-                "should_use_reasoning": should_use_reasoning,
+                "route": selected_route,
                 "reason": f"{reason} ({confidence:.0%} confidence)",
                 "intent": intent,
                 "confidence": confidence
@@ -216,7 +273,7 @@ Return ONLY valid JSON."""
         except Exception as e:
             logger.warning(f"Classification error, defaulting to DeepSeek: {e}")
             return {
-                "should_use_reasoning": False,
+                "route": "deepseek",
                 "reason": "Classification fallback → DeepSeek",
                 "intent": "simple",
                 "confidence": 0.0
@@ -237,6 +294,31 @@ Return ONLY valid JSON."""
             return response.choices[0].message.content
         except Exception as e:
             logger.error(f"DeepSeek error: {e}")
+            raise
+
+    async def _call_router_model(self, prompt: str, messages: list = None) -> str:
+        """Call GPT-5-mini for freshness-sensitive prompts."""
+
+        system_message = {
+            "role": "system",
+            "content": (
+                "You are handling a freshness-sensitive request in an Azure multi-model demo. "
+                "If live data is required and no live source was provided, say that clearly, "
+                "avoid inventing current facts, and explain what data or integration would be needed."
+            )
+        }
+        message_list = [system_message, *list(messages or [])]
+        message_list.append({"role": "user", "content": prompt})
+
+        try:
+            response = self.client.chat.completions.create(
+                model=self.router_model,
+                messages=message_list,
+                max_completion_tokens=1200
+            )
+            return response.choices[0].message.content
+        except Exception as e:
+            logger.error(f"Router model error: {e}")
             raise
 
     async def _call_reasoning_model(self, prompt: str, messages: list = None) -> str:
