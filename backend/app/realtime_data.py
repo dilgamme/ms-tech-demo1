@@ -273,4 +273,10 @@ def _clean_text(value: str | None) -> str:
 
 def _trim_capture(value: str) -> str:
     value = re.split(r"[?.!,;]", value, maxsplit=1)[0]
+    value = re.sub(
+        r"\b(today|now|right now|currently|current|this morning|this afternoon|this evening|tonight)\b",
+        "",
+        value,
+        flags=re.IGNORECASE,
+    )
     return _clean_text(value)
