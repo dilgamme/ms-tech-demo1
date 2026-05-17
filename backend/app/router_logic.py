@@ -4,6 +4,7 @@ import re
 from openai import OpenAI
 from app.config import settings
 from app.models import RoutingResponse
+from app.realtime_data import build_realtime_context
 
 logger = logging.getLogger(__name__)
 
@@ -299,12 +300,21 @@ Return ONLY valid JSON."""
     async def _call_router_model(self, prompt: str, messages: list = None) -> str:
         """Call GPT-5-mini for freshness-sensitive prompts."""
 
+        realtime_context = build_realtime_context(prompt)
+        context_instruction = (
+            f"\n\nRetrieved realtime context:\n{realtime_context}"
+            if realtime_context
+            else "\n\nNo realtime source returned useful context for this prompt."
+        )
         system_message = {
             "role": "system",
             "content": (
                 "You are handling a freshness-sensitive request in an Azure multi-model demo. "
-                "If live data is required and no live source was provided, say that clearly, "
+                "Use the retrieved realtime context below when it is relevant. "
+                "Mention the source and timestamp/link if present. "
+                "If live data is required but the retrieved context is missing or incomplete, say that clearly, "
                 "avoid inventing current facts, and explain what data or integration would be needed."
+                f"{context_instruction}"
             )
         }
         message_list = [system_message, *list(messages or [])]
