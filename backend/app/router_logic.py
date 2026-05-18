@@ -1,3 +1,4 @@
+import asyncio
 import json
 import logging
 import re
@@ -232,7 +233,8 @@ Rules:
 Return ONLY valid JSON."""
 
         try:
-            response = self.client.chat.completions.create(
+            response = await asyncio.to_thread(
+                self.client.chat.completions.create,
                 model=self.router_model,
                 messages=[{"role": "user", "content": classification_prompt}],
                 max_completion_tokens=150
@@ -298,7 +300,8 @@ Return ONLY valid JSON."""
         message_list.append({"role": "user", "content": prompt})
         
         try:
-            response = self.client.chat.completions.create(
+            response = await asyncio.to_thread(
+                self.client.chat.completions.create,
                 model=self.deepseek_model,
                 messages=message_list,
                 max_completion_tokens=2000
@@ -311,7 +314,7 @@ Return ONLY valid JSON."""
     async def _call_router_model(self, prompt: str, messages: list = None) -> str:
         """Call GPT-5-mini for freshness-sensitive prompts."""
 
-        realtime_context = build_realtime_context(prompt)
+        realtime_context = await asyncio.to_thread(build_realtime_context, prompt)
         context_instruction = (
             f"\n\nRetrieved realtime context:\n{realtime_context}"
             if realtime_context
@@ -332,7 +335,8 @@ Return ONLY valid JSON."""
         message_list.append({"role": "user", "content": prompt})
 
         try:
-            response = self.client.chat.completions.create(
+            response = await asyncio.to_thread(
+                self.client.chat.completions.create,
                 model=self.router_model,
                 messages=message_list,
                 max_completion_tokens=500
@@ -349,7 +353,8 @@ Return ONLY valid JSON."""
         message_list.append({"role": "user", "content": prompt})
         
         try:
-            response = self.client.responses.create(
+            response = await asyncio.to_thread(
+                self.client.responses.create,
                 model=self.reasoning_model,
                 input=message_list,
                 max_output_tokens=4000
