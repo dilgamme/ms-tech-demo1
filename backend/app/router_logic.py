@@ -50,10 +50,8 @@ REASONING_PATTERNS = (
     "analyze",
     "compare and contrast",
     "tradeoffs",
-    "architecture",
     "debug",
     "root cause",
-    "design a",
     "write code",
     "generate code",
     "refactor",
@@ -61,6 +59,17 @@ REASONING_PATTERNS = (
     "solve",
     "calculate",
     "optimize",
+)
+
+ARCHITECTURE_PLANNING_PATTERNS = (
+    "architecture",
+    "landing zone",
+    "deployment plan",
+    "step by step",
+    "design a",
+    "design an",
+    "plan for",
+    "roadmap",
 )
 
 REALTIME_PATTERNS = (
@@ -91,7 +100,7 @@ MAX_HISTORY_MESSAGES = 6
 MAX_MESSAGE_CHARS = 1200
 CLASSIFIER_TIMEOUT_SECONDS = 10
 FAST_MODEL_TIMEOUT_SECONDS = 15
-REASONING_TIMEOUT_SECONDS = 120
+REASONING_TIMEOUT_SECONDS = 25
 
 class ModelRouter:
     def __init__(self):
@@ -128,12 +137,21 @@ class ModelRouter:
             route = intent_classification["route"]
 
             if route == "reasoning":
-                response = await self._call_reasoning_model(prompt, messages)
-                return RoutingResponse(
-                    modelUsed=self.reasoning_model,
-                    reason=intent_classification["reason"],
-                    answer=response
-                )
+                try:
+                    response = await self._call_reasoning_model(prompt, messages)
+                    return RoutingResponse(
+                        modelUsed=self.reasoning_model,
+                        reason=intent_classification["reason"],
+                        answer=response
+                    )
+                except (asyncio.TimeoutError, Exception) as reasoning_error:
+                    logger.warning(f"Reasoning route fallback to mini: {reasoning_error}")
+                    response = await self._call_mini_answer_model(prompt, messages)
+                    return RoutingResponse(
+                        modelUsed=self.router_model,
+                        reason=f"{intent_classification['reason']} | GPT-5-Pro unavailable/slow, fallback → GPT-5-mini",
+                        answer=response
+                    )
             if route == "router":
                 if intent_classification.get("intent") == "realtime":
                     response = await self._call_router_model(prompt, messages)
@@ -203,6 +221,14 @@ class ModelRouter:
                 "reason": "Rule match: summary → DeepSeek",
                 "intent": "summary",
                 "confidence": 0.9
+            }
+
+        if self._contains_any(text, ARCHITECTURE_PLANNING_PATTERNS):
+            return {
+                "route": "router",
+                "reason": "Rule match: architecture/planning → GPT-5-mini",
+                "intent": "simple",
+                "confidence": 0.85
             }
 
         if self._contains_any(text, REASONING_PATTERNS):
@@ -341,7 +367,11 @@ Return ONLY valid JSON."""
 
         system_message = {
             "role": "system",
-            "content": "Answer concisely. If the user asks for current/live data and no source is provided, say what is missing."
+            "content": (
+                "Answer clearly and practically. For architecture, planning, or step-by-step requests, "
+                "give a structured answer with enough detail to be useful, but stay concise. "
+                "If the user asks for current/live data and no source is provided, say what is missing."
+            )
         }
         message_list = [system_message, *self._prepare_messages(messages)]
         message_list.append({"role": "user", "content": prompt})
@@ -351,7 +381,7 @@ Return ONLY valid JSON."""
             self.client.chat.completions.create,
             model=self.router_model,
             messages=message_list,
-            max_completion_tokens=500,
+            max_completion_tokens=1200,
             timeout=FAST_MODEL_TIMEOUT_SECONDS
         )
         return response.choices[0].message.content
