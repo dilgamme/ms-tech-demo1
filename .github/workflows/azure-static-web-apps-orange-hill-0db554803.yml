@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - feature/simplify-chatbot-ui
   pull_request:
     types: [opened, synchronize, reopened, closed]
     branches:

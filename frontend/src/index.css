@@ -3,29 +3,59 @@
 @tailwind utilities;
 
 body {
-  @apply bg-gray-900 text-gray-100;
+  @apply bg-slate-950 text-slate-100 antialiased;
 }
 
-.chat-message {
-  @apply mb-4 p-4 rounded-lg;
+* {
+  box-sizing: border-box;
 }
 
-.chat-message.user {
-  @apply bg-blue-600 ml-8;
+.message-bubble {
+  @apply max-w-[min(44rem,92%)] rounded-lg px-4 py-3 text-sm shadow-lg sm:px-5 sm:py-4 sm:text-base;
 }
 
-.chat-message.assistant {
-  @apply bg-gray-700 mr-8;
+.message-user {
+  @apply bg-blue-600 text-white shadow-blue-950/30;
+}
+
+.message-assistant {
+  @apply border border-slate-800 bg-slate-900 text-slate-100 shadow-black/20;
+}
+
+.sender-icon {
+  @apply mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full border shadow-lg;
+}
+
+.sender-icon-user {
+  @apply border-blue-400/40 bg-blue-500/15 text-blue-100 shadow-blue-950/20;
+}
+
+.sender-icon-assistant {
+  @apply border-emerald-400/30 bg-emerald-500/10 text-emerald-100 shadow-black/20;
+}
+
+.control-button,
+.control-button-disabled {
+  @apply inline-flex h-9 w-9 items-center justify-center rounded-lg border text-sm font-medium transition;
+}
+
+.control-button {
+  @apply border-slate-700 bg-slate-900 text-slate-200 hover:border-slate-600 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50;
+}
+
+.control-button-disabled {
+  @apply cursor-not-allowed border-slate-800 bg-slate-950 text-slate-600;
 }
 
 .loading-dots {
   display: inline-flex;
   gap: 4px;
+  align-items: center;
 }
 
 .loading-dots span {
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
   background-color: currentColor;
   border-radius: 50%;
   animation: pulse 1.4s infinite;

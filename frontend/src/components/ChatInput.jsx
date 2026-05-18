@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 
-export const ChatInput = ({ onSend, isLoading, onNewChat }) => {
+export const ChatInput = ({ onSend, isLoading }) => {
   const [input, setInput] = useState('')
   const inputRef = useRef(null)
 
@@ -16,51 +16,66 @@ export const ChatInput = ({ onSend, isLoading, onNewChat }) => {
     }
   }
 
-  return (
-    <div className="border-t border-gray-700 bg-gray-800 p-4 space-y-2">
-      <form onSubmit={handleSubmit} className="flex gap-2">
-        <input
-          ref={inputRef}
-          type="text"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          placeholder="Ask something..."
-          disabled={isLoading}
-          className="flex-1 bg-gray-700 text-white px-4 py-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
-        />
-        <button
-          type="submit"
-          disabled={isLoading || !input.trim()}
-          className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 text-white px-6 py-3 rounded-lg font-medium transition"
-        >
-          {isLoading ? 'Sending...' : 'Send'}
-        </button>
-      </form>
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault()
+      handleSubmit(e)
+    }
+  }
 
-      <div className="flex gap-2">
-        <button
-          onClick={onNewChat}
-          disabled={isLoading}
-          className="text-sm bg-gray-700 hover:bg-gray-600 disabled:bg-gray-800 text-gray-200 px-3 py-2 rounded transition"
-        >
-          ↻ New Chat
-        </button>
-        
-        {/* Future feature placeholders */}
-        <button
-          disabled
-          className="text-sm bg-gray-800 text-gray-500 px-3 py-2 rounded cursor-not-allowed opacity-50"
-          title="Coming soon"
-        >
-          🎤 Microphone
-        </button>
-        <button
-          disabled
-          className="text-sm bg-gray-800 text-gray-500 px-3 py-2 rounded cursor-not-allowed opacity-50"
-          title="Coming soon"
-        >
-          📷 Image Upload
-        </button>
+  return (
+    <div className="border-t border-slate-800 bg-slate-950 px-4 py-4 sm:px-6">
+      <div className="mx-auto w-full max-w-4xl">
+        <form onSubmit={handleSubmit} className="rounded-lg border border-slate-800 bg-slate-900 p-2 shadow-2xl shadow-black/20">
+          <textarea
+            ref={inputRef}
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder="Message the Azure AI router"
+            disabled={isLoading}
+            rows={1}
+            className="max-h-36 min-h-12 w-full resize-none bg-transparent px-3 py-3 text-sm leading-6 text-white outline-none placeholder:text-slate-500 disabled:opacity-60 sm:text-base"
+          />
+
+          <div className="flex items-center justify-between gap-3 border-t border-slate-800 pt-2">
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                disabled
+                className="control-button-disabled"
+                title="Microphone support coming later"
+                aria-label="Microphone"
+              >
+                <svg viewBox="0 0 24 24" aria-hidden="true" className="h-4 w-4">
+                  <path d="M12 14a3 3 0 0 0 3-3V6a3 3 0 1 0-6 0v5a3 3 0 0 0 3 3Z" fill="none" stroke="currentColor" strokeWidth="2" />
+                  <path d="M5 11a7 7 0 0 0 14 0M12 18v3M9 21h6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                </svg>
+              </button>
+              <button
+                type="button"
+                disabled
+                className="control-button-disabled"
+                title="Image upload coming later"
+                aria-label="Image upload"
+              >
+                <svg viewBox="0 0 24 24" aria-hidden="true" className="h-4 w-4">
+                  <rect x="4" y="5" width="16" height="14" rx="2" fill="none" stroke="currentColor" strokeWidth="2" />
+                  <path d="m7 16 4-4 3 3 2-2 3 3" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                  <circle cx="9" cy="9" r="1.5" fill="currentColor" />
+                </svg>
+              </button>
+            </div>
+
+            <button
+              type="submit"
+              disabled={isLoading || !input.trim()}
+              className="inline-flex h-10 items-center justify-center rounded-lg bg-blue-600 px-4 text-sm font-medium text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400"
+            >
+              {isLoading ? 'Sending' : 'Send'}
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   )

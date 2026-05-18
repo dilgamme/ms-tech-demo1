@@ -30,6 +30,10 @@ function App() {
   }, [messages])
 
   const handleSendMessage = async (prompt) => {
+    if (!prompt?.trim() || isLoading) {
+      return
+    }
+
     // Add user message
     const userMessage = {
       role: 'user',
@@ -70,18 +74,35 @@ function App() {
   }
 
   return (
-    <div className="h-screen flex flex-col bg-gray-900">
-      <header className="bg-gradient-to-r from-blue-600 to-purple-600 p-4 text-white shadow-lg">
-        <h1 className="text-2xl font-bold">🤖 MS Tech Summit Demo</h1>
-        <p className="text-sm text-blue-100">Multi-model AI routing on Azure</p>
+    <div className="flex h-screen flex-col bg-slate-950 text-slate-100">
+      <header className="border-b border-slate-800 bg-slate-950/95">
+        <div className="mx-auto flex w-full max-w-5xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
+          <div>
+            <h1 className="text-base font-semibold tracking-normal sm:text-lg">MS Tech Demo</h1>
+            <p className="text-xs text-slate-400 sm:text-sm">Multi-model AI routing on Azure</p>
+          </div>
+          <button
+            type="button"
+            onClick={handleNewChat}
+            disabled={isLoading}
+            className="inline-flex h-9 items-center justify-center rounded-lg border border-slate-700 bg-slate-900 px-3 text-sm font-medium text-slate-200 transition hover:border-slate-600 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            New chat
+          </button>
+        </div>
       </header>
 
-      <MessageList messages={messages} isLoading={isLoading} />
+      <main className="min-h-0 flex-1">
+        <MessageList
+          messages={messages}
+          isLoading={isLoading}
+          onSuggestionSelect={handleSendMessage}
+        />
+      </main>
 
       <ChatInput
         onSend={handleSendMessage}
         isLoading={isLoading}
-        onNewChat={handleNewChat}
       />
     </div>
   )
