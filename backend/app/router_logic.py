@@ -9,8 +9,8 @@ from app.realtime_data import build_realtime_context, direct_realtime_answer
 
 logger = logging.getLogger(__name__)
 
-DEEPSEEK_INTENTS = {"translation", "summary", "simple"}
-ROUTER_INTENTS = {"realtime"}
+DEEPSEEK_INTENTS = {"translation", "summary"}
+ROUTER_INTENTS = {"realtime", "simple"}
 REASONING_INTENTS = {"analysis", "code", "math", "planning", "reasoning"}
 
 TRANSLATION_PATTERNS = (
@@ -90,7 +90,7 @@ REALTIME_PATTERNS = (
 MAX_HISTORY_MESSAGES = 6
 MAX_MESSAGE_CHARS = 1200
 CLASSIFIER_TIMEOUT_SECONDS = 10
-FAST_MODEL_TIMEOUT_SECONDS = 20
+FAST_MODEL_TIMEOUT_SECONDS = 15
 REASONING_TIMEOUT_SECONDS = 120
 
 class ModelRouter:
@@ -135,7 +135,10 @@ class ModelRouter:
                     answer=response
                 )
             if route == "router":
-                response = await self._call_router_model(prompt, messages)
+                if intent_classification.get("intent") == "realtime":
+                    response = await self._call_router_model(prompt, messages)
+                else:
+                    response = await self._call_mini_answer_model(prompt, messages)
                 return RoutingResponse(
                     modelUsed=self.router_model,
                     reason=intent_classification["reason"],
@@ -150,6 +153,13 @@ class ModelRouter:
                     answer=response
                 )
                 
+        except asyncio.TimeoutError:
+            logger.error("Routing timed out")
+            return RoutingResponse(
+                modelUsed="none",
+                reason="Model timeout",
+                answer="The model request took too long. Please try again, or choose a shorter prompt."
+            )
         except Exception as e:
             logger.error(f"Routing error: {e}")
             try:
@@ -235,7 +245,8 @@ Respond with only one JSON object:
 }}
 
 Rules:
-- Translation, short summaries, simple factual questions, definitions, and brief explanations: deepseek
+- Translation and short summaries: deepseek
+- Simple factual questions, definitions, and brief explanations: router
 - Current/latest/real-time/live-data questions, including news, prices, weather, sports scores, recent events, or anything where freshness matters: router
 - Multi-step analysis, architecture, planning, debugging, math/logic, code generation, code review, and optimization: reasoning
 - If the user asks for tradeoffs, a plan, root cause, or a deep comparison: reasoning
@@ -243,7 +254,8 @@ Rules:
 Return ONLY valid JSON."""
 
         try:
-            response = await asyncio.to_thread(
+            response = await self._run_blocking(
+                CLASSIFIER_TIMEOUT_SECONDS,
                 self.client.chat.completions.create,
                 model=self.router_model,
                 messages=[{"role": "user", "content": classification_prompt}],
@@ -270,7 +282,7 @@ Return ONLY valid JSON."""
             reason_map = {
                 "translation": "Classifier: translation → DeepSeek",
                 "summary": "Classifier: summary → DeepSeek",
-                "simple": "Classifier: simple query → DeepSeek",
+                "simple": "Classifier: simple query → GPT-5-mini",
                 "realtime": "Classifier: real-time/current data → GPT-5-mini",
                 "analysis": "Classifier: analysis → GPT-5-Pro",
                 "code": "Classifier: code task → GPT-5-Pro",
@@ -311,7 +323,8 @@ Return ONLY valid JSON."""
         message_list.append({"role": "user", "content": prompt})
         
         try:
-            response = await asyncio.to_thread(
+            response = await self._run_blocking(
+                FAST_MODEL_TIMEOUT_SECONDS,
                 self.client.chat.completions.create,
                 model=self.deepseek_model,
                 messages=message_list,
@@ -333,7 +346,8 @@ Return ONLY valid JSON."""
         message_list = [system_message, *self._prepare_messages(messages)]
         message_list.append({"role": "user", "content": prompt})
 
-        response = await asyncio.to_thread(
+        response = await self._run_blocking(
+            FAST_MODEL_TIMEOUT_SECONDS,
             self.client.chat.completions.create,
             model=self.router_model,
             messages=message_list,
@@ -345,7 +359,11 @@ Return ONLY valid JSON."""
     async def _call_router_model(self, prompt: str, messages: list = None) -> str:
         """Call GPT-5-mini for freshness-sensitive prompts."""
 
-        realtime_context = await asyncio.to_thread(build_realtime_context, prompt)
+        realtime_context = await self._run_blocking(
+            FAST_MODEL_TIMEOUT_SECONDS,
+            build_realtime_context,
+            prompt
+        )
         context_instruction = (
             f"\n\nRetrieved realtime context:\n{realtime_context}"
             if realtime_context
@@ -366,7 +384,8 @@ Return ONLY valid JSON."""
         message_list.append({"role": "user", "content": prompt})
 
         try:
-            response = await asyncio.to_thread(
+            response = await self._run_blocking(
+                FAST_MODEL_TIMEOUT_SECONDS,
                 self.client.chat.completions.create,
                 model=self.router_model,
                 messages=message_list,
@@ -385,7 +404,8 @@ Return ONLY valid JSON."""
         message_list.append({"role": "user", "content": prompt})
         
         try:
-            response = await asyncio.to_thread(
+            response = await self._run_blocking(
+                REASONING_TIMEOUT_SECONDS,
                 self.client.responses.create,
                 model=self.reasoning_model,
                 input=message_list,
@@ -396,6 +416,12 @@ Return ONLY valid JSON."""
         except Exception as e:
             logger.error(f"Reasoning model error: {e}")
             raise
+
+    async def _run_blocking(self, timeout_seconds: int, func, *args, **kwargs):
+        return await asyncio.wait_for(
+            asyncio.to_thread(func, *args, **kwargs),
+            timeout=timeout_seconds
+        )
 
     def _parse_classifier_json(self, text: str) -> dict:
         try:
