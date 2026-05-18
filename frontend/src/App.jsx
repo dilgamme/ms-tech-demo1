@@ -5,6 +5,8 @@ import { ChatInput } from './components/ChatInput'
 import './index.css'
 
 const STORAGE_KEY = 'mstech_chat_history'
+const MAX_CONTEXT_MESSAGES = 6
+const MAX_CONTEXT_CHARS = 1200
 
 function App() {
   const [messages, setMessages] = useState([])
@@ -37,7 +39,11 @@ function App() {
     setIsLoading(true)
 
     try {
-      const response = await routePrompt(prompt, messages)
+      const contextMessages = messages.slice(-MAX_CONTEXT_MESSAGES).map(msg => ({
+        role: msg.role,
+        content: msg.content.slice(0, MAX_CONTEXT_CHARS),
+      }))
+      const response = await routePrompt(prompt, contextMessages)
       const assistantMessage = {
         role: 'assistant',
         content: response.answer,

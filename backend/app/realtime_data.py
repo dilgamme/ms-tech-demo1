@@ -4,15 +4,28 @@ import urllib.parse
 import urllib.request
 import xml.etree.ElementTree as ET
 from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
 
 
 USER_AGENT = "ms-tech-demo-router/1.0"
-TIMEOUT_SECONDS = 8
+TIMEOUT_SECONDS = 3
 
 WEATHER_TERMS = ("weather", "temperature", "forecast")
 FINANCE_TERMS = ("stock price", "share price", "crypto price", "price of", "market price")
-NEWS_TERMS = ("news", "latest", "recent", "today", "this week", "current")
 NEWS_EXPLICIT_TERMS = ("news", "latest", "recent", "current events", "this week")
+DATE_TIME_TERMS = (
+    "what date",
+    "which date",
+    "today's date",
+    "date today",
+    "what day",
+    "which day",
+    "what year",
+    "which year",
+    "current year",
+    "what time",
+    "current time",
+)
 
 COMPANY_TICKERS = {
     "microsoft": "MSFT",
@@ -64,9 +77,11 @@ def build_realtime_context(prompt: str) -> str:
     sections = []
     wants_weather = _contains_any(text, WEATHER_TERMS)
     wants_finance = _contains_any(text, FINANCE_TERMS)
-    wants_news = _contains_any(text, NEWS_EXPLICIT_TERMS) or (
-        _contains_any(text, NEWS_TERMS) and not wants_weather and not wants_finance
-    )
+    wants_date_time = _contains_any(text, DATE_TIME_TERMS)
+    wants_news = _contains_any(text, NEWS_EXPLICIT_TERMS) and not wants_weather and not wants_finance
+
+    if wants_date_time:
+        sections.append(_date_time_context())
 
     if wants_weather:
         weather = _safe_fetch("Weather lookup", lambda: _fetch_weather(prompt))
@@ -92,6 +107,43 @@ def build_realtime_context(prompt: str) -> str:
         + "\n\n".join(sections)
         + "\n\nUse this retrieved context when relevant. Mention source names and timestamps/links when available. "
         + "If the retrieved context does not fully answer the user, say what is missing instead of guessing."
+    )
+
+
+def direct_realtime_answer(prompt: str) -> str | None:
+    text = prompt.lower()
+    if not _contains_any(text, DATE_TIME_TERMS):
+        return None
+
+    now_utc = datetime.now(timezone.utc)
+    now_warsaw = now_utc.astimezone(ZoneInfo("Europe/Warsaw"))
+
+    if "year" in text:
+        return (
+            f"The current year is {now_warsaw.year}. "
+            f"Source: backend system clock, Europe/Warsaw time, {now_warsaw:%Y-%m-%d %H:%M:%S %Z}."
+        )
+
+    if "time" in text:
+        return (
+            f"The current time is {now_warsaw:%H:%M:%S} in Europe/Warsaw "
+            f"on {now_warsaw:%Y-%m-%d}. Source: backend system clock."
+        )
+
+    return (
+        f"Today's date is {now_warsaw:%Y-%m-%d} in Europe/Warsaw "
+        f"({now_utc:%Y-%m-%d} UTC). Source: backend system clock."
+    )
+
+
+def _date_time_context() -> str:
+    now_utc = datetime.now(timezone.utc)
+    now_warsaw = now_utc.astimezone(ZoneInfo("Europe/Warsaw"))
+    return (
+        "Date/time source: backend system clock.\n"
+        f"UTC time: {now_utc:%Y-%m-%d %H:%M:%S %Z}.\n"
+        f"Europe/Warsaw time: {now_warsaw:%Y-%m-%d %H:%M:%S %Z}.\n"
+        f"Current year in Europe/Warsaw: {now_warsaw.year}."
     )
 
 

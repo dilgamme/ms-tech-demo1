@@ -4,7 +4,7 @@ import re
 from openai import OpenAI
 from app.config import settings
 from app.models import RoutingResponse
-from app.realtime_data import build_realtime_context
+from app.realtime_data import build_realtime_context, direct_realtime_answer
 
 logger = logging.getLogger(__name__)
 
@@ -86,6 +86,9 @@ REALTIME_PATTERNS = (
     "schedule",
 )
 
+MAX_HISTORY_MESSAGES = 6
+MAX_MESSAGE_CHARS = 1200
+
 class ModelRouter:
     def __init__(self):
         endpoint = settings.AZURE_OPENAI_ENDPOINT.rstrip("/")
@@ -106,6 +109,14 @@ class ModelRouter:
         """
         
         try:
+            direct_answer = direct_realtime_answer(prompt)
+            if direct_answer:
+                return RoutingResponse(
+                    modelUsed="realtime-clock",
+                    reason="Direct realtime utility: date/time",
+                    answer=direct_answer
+                )
+
             intent_classification = self._rule_based_route(prompt)
             if intent_classification is None:
                 intent_classification = await self._classify_intent(prompt)
@@ -283,7 +294,7 @@ Return ONLY valid JSON."""
     async def _call_deepseek_model(self, prompt: str, messages: list = None) -> str:
         """Call DeepSeek-V4-Flash model"""
         
-        message_list = list(messages or [])
+        message_list = self._prepare_messages(messages)
         message_list.append({"role": "user", "content": prompt})
         
         try:
@@ -317,14 +328,14 @@ Return ONLY valid JSON."""
                 f"{context_instruction}"
             )
         }
-        message_list = [system_message, *list(messages or [])]
+        message_list = [system_message, *self._prepare_messages(messages)]
         message_list.append({"role": "user", "content": prompt})
 
         try:
             response = self.client.chat.completions.create(
                 model=self.router_model,
                 messages=message_list,
-                max_completion_tokens=1200
+                max_completion_tokens=500
             )
             return response.choices[0].message.content
         except Exception as e:
@@ -334,7 +345,7 @@ Return ONLY valid JSON."""
     async def _call_reasoning_model(self, prompt: str, messages: list = None) -> str:
         """Call GPT-5-Pro reasoning model through the Responses API."""
         
-        message_list = list(messages or [])
+        message_list = self._prepare_messages(messages)
         message_list.append({"role": "user", "content": prompt})
         
         try:
@@ -359,6 +370,15 @@ Return ONLY valid JSON."""
 
     def _contains_any(self, text: str, patterns: tuple[str, ...]) -> bool:
         return any(pattern in text for pattern in patterns)
+
+    def _prepare_messages(self, messages: list = None) -> list:
+        prepared = []
+        for message in list(messages or [])[-MAX_HISTORY_MESSAGES:]:
+            content = str(message.get("content", ""))[:MAX_MESSAGE_CHARS]
+            role = message.get("role")
+            if role in {"user", "assistant", "system"} and content:
+                prepared.append({"role": role, "content": content})
+        return prepared
 
     def _extract_response_text(self, response) -> str:
         output_text = getattr(response, "output_text", None)

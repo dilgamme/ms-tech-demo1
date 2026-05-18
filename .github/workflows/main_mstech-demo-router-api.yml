@@ -8,6 +8,7 @@ on:
     branches:
     - main
     - feature/improve-model-routing
+    - feature/reduce-router-latency
   workflow_dispatch:
 
 jobs:
