@@ -130,6 +130,14 @@ class ModelRouter:
                     answer=direct_answer
                 )
 
+            architecture_answer = self._architecture_planning_answer(prompt)
+            if architecture_answer:
+                return RoutingResponse(
+                    modelUsed="architecture-template",
+                    reason="Fast deterministic route: Azure landing zone architecture",
+                    answer=architecture_answer
+                )
+
             intent_classification = self._rule_based_route(prompt)
             if intent_classification is None:
                 intent_classification = await self._classify_intent(prompt)
@@ -464,6 +472,49 @@ Return ONLY valid JSON."""
 
     def _contains_any(self, text: str, patterns: tuple[str, ...]) -> bool:
         return any(pattern in text for pattern in patterns)
+
+    def _architecture_planning_answer(self, prompt: str) -> str | None:
+        text = prompt.strip().lower()
+        if not (
+            ("azure" in text and "architecture" in text)
+            or "landing zone" in text
+        ):
+            return None
+
+        return """Step-by-step Azure architecture for deploying a complex app with a landing zone:
+
+1. Start with the Azure landing zone
+Create separate management groups for Platform, Landing Zones, Sandbox, and Decommissioned workloads. Apply Azure Policy at the management group level for allowed regions, tagging, diagnostics, security baselines, and private endpoint requirements.
+
+2. Split subscriptions by responsibility
+Use a Platform Connectivity subscription for hub networking, a Platform Management subscription for monitoring/security, and one or more application landing zone subscriptions for the app environments such as dev, test, and prod.
+
+3. Design hub-and-spoke networking
+Place Azure Firewall, VPN/ExpressRoute gateway, Bastion, DNS resolver, and shared private DNS zones in the hub virtual network. Put application workloads in spoke VNets and peer each spoke to the hub.
+
+4. Define identity and access
+Use Microsoft Entra ID groups for RBAC. Give teams least-privilege access at subscription or resource group scope. Use managed identities for apps, automation, and access to Key Vault, storage, databases, and Azure AI.
+
+5. Build the application platform
+For a web app, use Azure App Service, Azure Container Apps, or AKS depending on complexity. Put the frontend behind Azure Front Door or Application Gateway WAF. Keep backend APIs private where possible.
+
+6. Add data and integration services
+Use Azure SQL, Cosmos DB, Storage, Service Bus, Event Grid, or Event Hubs based on workload needs. Prefer private endpoints for data services and store secrets in Key Vault.
+
+7. Secure ingress and egress
+Route public traffic through Front Door or Application Gateway with WAF. Route outbound traffic through Azure Firewall or NAT Gateway. Use NSGs, route tables, private DNS, and private endpoints to reduce public exposure.
+
+8. Add observability
+Enable Application Insights, Log Analytics, diagnostic settings, alerts, dashboards, and distributed tracing. Send platform and app logs to a central workspace in the management subscription.
+
+9. Automate deployment
+Use GitHub Actions with infrastructure as code: Bicep, Terraform, or Azure Developer CLI. Deploy landing zone foundations first, then shared platform services, then app resources, then application code.
+
+10. Operate and govern
+Use Defender for Cloud, Azure Policy compliance, budgets, cost alerts, backup, disaster recovery, and environment promotion gates. For production, add zone redundancy, autoscaling, blue-green deployment, and rollback.
+
+Recommended flow:
+Landing zone -> hub network -> app spoke -> shared security/monitoring -> app platform -> data services -> CI/CD -> production controls."""
 
     def _prepare_messages(self, messages: list = None) -> list:
         prepared = []
