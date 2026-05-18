@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 
-export const ChatInput = ({ onSend, isLoading, onNewChat }) => {
+export const ChatInput = ({ onSend, isLoading }) => {
   const [input, setInput] = useState('')
   const inputRef = useRef(null)
 
@@ -40,16 +40,6 @@ export const ChatInput = ({ onSend, isLoading, onNewChat }) => {
 
           <div className="flex items-center justify-between gap-3 border-t border-slate-800 pt-2">
             <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={onNewChat}
-                disabled={isLoading}
-                className="control-button"
-                title="New chat"
-                aria-label="New chat"
-              >
-                +
-              </button>
               <button
                 type="button"
                 disabled

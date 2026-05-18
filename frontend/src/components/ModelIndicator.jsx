@@ -1,6 +1,8 @@
 export const ModelIndicator = ({ modelUsed, reason }) => {
   if (!modelUsed) return null
 
+  const displayReason = reason?.replace(/\s*\(\d+% confidence\)\s*$/i, '')
+
   const getModelStyle = (model) => {
     const normalized = model.toLowerCase()
     if (normalized.includes('pro')) return 'border-violet-500/40 bg-violet-500/10 text-violet-200'
@@ -15,9 +17,9 @@ export const ModelIndicator = ({ modelUsed, reason }) => {
       <span className={`rounded-full border px-2.5 py-1 font-medium ${getModelStyle(modelUsed)}`}>
         Model: {modelUsed}
       </span>
-      {reason && (
+      {displayReason && (
         <span className="rounded-full border border-slate-700 bg-slate-900 px-2.5 py-1 text-slate-400">
-          Route: {reason}
+          Route: {displayReason}
         </span>
       )}
     </div>

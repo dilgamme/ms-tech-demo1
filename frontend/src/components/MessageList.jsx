@@ -9,7 +9,22 @@ export const LoadingDots = () => (
   </span>
 )
 
-export const MessageList = ({ messages, isLoading }) => {
+const SUGGESTIONS = [
+  {
+    label: 'Quick',
+    prompt: 'What is Microsoft Azure?',
+  },
+  {
+    label: 'Realtime',
+    prompt: 'What is the weather in Warsaw today?',
+  },
+  {
+    label: 'Reasoning',
+    prompt: 'Analyze this Azure architecture and tradeoffs.',
+  },
+]
+
+export const MessageList = ({ messages, isLoading, onSuggestionSelect }) => {
   const bottomRef = useRef(null)
 
   useEffect(() => {
@@ -29,18 +44,17 @@ export const MessageList = ({ messages, isLoading }) => {
               Try a quick definition, a realtime question, or a deeper architecture prompt.
             </p>
             <div className="mt-8 grid gap-3 text-left sm:grid-cols-3">
-              <div className="rounded-lg border border-slate-800 bg-slate-900/70 p-4">
-                <div className="text-sm font-medium text-slate-100">Quick</div>
-                <p className="mt-2 text-sm text-slate-400">What is Microsoft Azure?</p>
-              </div>
-              <div className="rounded-lg border border-slate-800 bg-slate-900/70 p-4">
-                <div className="text-sm font-medium text-slate-100">Realtime</div>
-                <p className="mt-2 text-sm text-slate-400">What is the weather in Warsaw today?</p>
-              </div>
-              <div className="rounded-lg border border-slate-800 bg-slate-900/70 p-4">
-                <div className="text-sm font-medium text-slate-100">Reasoning</div>
-                <p className="mt-2 text-sm text-slate-400">Analyze this Azure architecture and tradeoffs.</p>
-              </div>
+              {SUGGESTIONS.map((item) => (
+                <button
+                  key={item.label}
+                  type="button"
+                  onClick={() => onSuggestionSelect?.(item.prompt)}
+                  className="rounded-lg border border-slate-800 bg-slate-900/70 p-4 text-left transition hover:border-slate-700 hover:bg-slate-900"
+                >
+                  <div className="text-sm font-medium text-slate-100">{item.label}</div>
+                  <p className="mt-2 text-sm text-slate-400">{item.prompt}</p>
+                </button>
+              ))}
             </div>
           </div>
         )}
