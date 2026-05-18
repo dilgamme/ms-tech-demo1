@@ -89,6 +89,9 @@ REALTIME_PATTERNS = (
 
 MAX_HISTORY_MESSAGES = 6
 MAX_MESSAGE_CHARS = 1200
+CLASSIFIER_TIMEOUT_SECONDS = 10
+FAST_MODEL_TIMEOUT_SECONDS = 20
+REASONING_TIMEOUT_SECONDS = 120
 
 class ModelRouter:
     def __init__(self):
@@ -149,13 +152,20 @@ class ModelRouter:
                 
         except Exception as e:
             logger.error(f"Routing error: {e}")
-            # Fallback to DeepSeek on error
-            response = await self._call_deepseek_model(prompt, messages)
-            return RoutingResponse(
-                modelUsed=self.deepseek_model,
-                reason="Fallback after error",
-                answer=response
-            )
+            try:
+                response = await self._call_mini_answer_model(prompt, messages)
+                return RoutingResponse(
+                    modelUsed=self.router_model,
+                    reason="Fallback after error → GPT-5-mini",
+                    answer=response
+                )
+            except Exception as fallback_error:
+                logger.error(f"Fallback model error: {fallback_error}")
+                return RoutingResponse(
+                    modelUsed="none",
+                    reason="Model timeout/error",
+                    answer="The model request took too long or failed. Please try again with a shorter prompt."
+                )
 
     def _rule_based_route(self, prompt: str) -> dict | None:
         text = prompt.strip().lower()
@@ -195,8 +205,8 @@ class ModelRouter:
 
         if word_count <= 18 and (text.endswith("?") or self._contains_any(text, SIMPLE_PATTERNS)):
             return {
-                "route": "deepseek",
-                "reason": "Rule match: short/simple query → DeepSeek",
+                "route": "router",
+                "reason": "Rule match: short/simple query → GPT-5-mini",
                 "intent": "simple",
                 "confidence": 0.85
             }
@@ -237,7 +247,8 @@ Return ONLY valid JSON."""
                 self.client.chat.completions.create,
                 model=self.router_model,
                 messages=[{"role": "user", "content": classification_prompt}],
-                max_completion_tokens=150
+                max_completion_tokens=150,
+                timeout=CLASSIFIER_TIMEOUT_SECONDS
             )
             
             classification_text = response.choices[0].message.content or ""
@@ -304,12 +315,32 @@ Return ONLY valid JSON."""
                 self.client.chat.completions.create,
                 model=self.deepseek_model,
                 messages=message_list,
-                max_completion_tokens=2000
+                max_completion_tokens=700,
+                timeout=FAST_MODEL_TIMEOUT_SECONDS
             )
             return response.choices[0].message.content
         except Exception as e:
             logger.error(f"DeepSeek error: {e}")
             raise
+
+    async def _call_mini_answer_model(self, prompt: str, messages: list = None) -> str:
+        """Call GPT-5-mini as a fast fallback/general answer model."""
+
+        system_message = {
+            "role": "system",
+            "content": "Answer concisely. If the user asks for current/live data and no source is provided, say what is missing."
+        }
+        message_list = [system_message, *self._prepare_messages(messages)]
+        message_list.append({"role": "user", "content": prompt})
+
+        response = await asyncio.to_thread(
+            self.client.chat.completions.create,
+            model=self.router_model,
+            messages=message_list,
+            max_completion_tokens=500,
+            timeout=FAST_MODEL_TIMEOUT_SECONDS
+        )
+        return response.choices[0].message.content
 
     async def _call_router_model(self, prompt: str, messages: list = None) -> str:
         """Call GPT-5-mini for freshness-sensitive prompts."""
@@ -339,7 +370,8 @@ Return ONLY valid JSON."""
                 self.client.chat.completions.create,
                 model=self.router_model,
                 messages=message_list,
-                max_completion_tokens=500
+                max_completion_tokens=500,
+                timeout=FAST_MODEL_TIMEOUT_SECONDS
             )
             return response.choices[0].message.content
         except Exception as e:
@@ -357,7 +389,8 @@ Return ONLY valid JSON."""
                 self.client.responses.create,
                 model=self.reasoning_model,
                 input=message_list,
-                max_output_tokens=4000
+                max_output_tokens=4000,
+                timeout=REASONING_TIMEOUT_SECONDS
             )
             return self._extract_response_text(response)
         except Exception as e:
