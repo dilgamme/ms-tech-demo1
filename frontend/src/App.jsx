@@ -70,13 +70,23 @@ function App() {
   }
 
   return (
-    <div className="h-screen flex flex-col bg-gray-900">
-      <header className="bg-gradient-to-r from-blue-600 to-purple-600 p-4 text-white shadow-lg">
-        <h1 className="text-2xl font-bold">🤖 MS Tech Summit Demo</h1>
-        <p className="text-sm text-blue-100">Multi-model AI routing on Azure</p>
+    <div className="flex h-screen flex-col bg-slate-950 text-slate-100">
+      <header className="border-b border-slate-800 bg-slate-950/95">
+        <div className="mx-auto flex w-full max-w-5xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
+          <div>
+            <h1 className="text-base font-semibold tracking-normal sm:text-lg">MS Tech Demo</h1>
+            <p className="text-xs text-slate-400 sm:text-sm">Multi-model AI routing on Azure</p>
+          </div>
+          <div className="hidden items-center gap-2 rounded-full border border-slate-800 bg-slate-900 px-3 py-1.5 text-xs text-slate-300 sm:flex">
+            <span className="h-2 w-2 rounded-full bg-emerald-400"></span>
+            Live router
+          </div>
+        </div>
       </header>
 
-      <MessageList messages={messages} isLoading={isLoading} />
+      <main className="min-h-0 flex-1">
+        <MessageList messages={messages} isLoading={isLoading} />
+      </main>
 
       <ChatInput
         onSend={handleSendMessage}
