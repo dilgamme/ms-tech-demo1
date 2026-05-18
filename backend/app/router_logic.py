@@ -380,14 +380,15 @@ Return ONLY valid JSON."""
     ) -> str:
         """Call GPT-5-mini as a fast fallback/general answer model."""
 
-        max_tokens = 450 if compact else 700
+        max_tokens = 300 if compact else 450
         timeout_seconds = FAST_RETRY_TIMEOUT_SECONDS if compact else FAST_MODEL_TIMEOUT_SECONDS
         system_message = {
             "role": "system",
             "content": (
                 "Answer clearly and practically. For architecture, planning, or step-by-step requests, "
                 "give a structured answer with enough detail to be useful, but keep it demo-friendly: "
-                "prefer 6-8 steps unless the user explicitly asks for a very detailed plan. "
+                "prefer 5-7 concise steps unless the user explicitly asks for a very detailed plan. "
+                "Avoid long introductions and avoid expanding every subtopic. "
                 "If the user asks for current/live data and no source is provided, say what is missing."
             )
         }
