@@ -9,6 +9,26 @@ export const LoadingDots = () => (
   </span>
 )
 
+const SenderIcon = ({ role }) => {
+  const isUser = role === 'user'
+
+  return (
+    <div className={`sender-icon ${isUser ? 'sender-icon-user' : 'sender-icon-assistant'}`} aria-hidden="true">
+      {isUser ? (
+        <svg viewBox="0 0 24 24" className="h-4 w-4">
+          <path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z" fill="none" stroke="currentColor" strokeWidth="2" />
+          <path d="M4.5 20a7.5 7.5 0 0 1 15 0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+        </svg>
+      ) : (
+        <svg viewBox="0 0 24 24" className="h-4 w-4">
+          <rect x="5" y="7" width="14" height="11" rx="3" fill="none" stroke="currentColor" strokeWidth="2" />
+          <path d="M9 11h.01M15 11h.01M10 15h4M12 7V4M8 4h8" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+        </svg>
+      )}
+    </div>
+  )
+}
+
 const SUGGESTIONS = [
   {
     label: 'Quick',
@@ -63,17 +83,20 @@ export const MessageList = ({ messages, isLoading, onSuggestionSelect }) => {
           {messages.map((msg, idx) => {
             const isUser = msg.role === 'user'
             return (
-              <div key={idx} className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}>
+              <div key={idx} className={`flex items-start gap-3 ${isUser ? 'justify-end' : 'justify-start'}`}>
+                {!isUser && <SenderIcon role={msg.role} />}
                 <article className={`message-bubble ${isUser ? 'message-user' : 'message-assistant'}`}>
                   <div className="whitespace-pre-wrap leading-7">{msg.content}</div>
                   {!isUser && <ModelIndicator modelUsed={msg.modelUsed} reason={msg.reason} />}
                 </article>
+                {isUser && <SenderIcon role={msg.role} />}
               </div>
             )
           })}
 
           {isLoading && (
-            <div className="flex justify-start">
+            <div className="flex items-start justify-start gap-3">
+              <SenderIcon role="assistant" />
               <article className="message-bubble message-assistant">
                 <div className="flex items-center gap-2 text-slate-300">
                   <span>Thinking</span>
