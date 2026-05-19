@@ -19,6 +19,7 @@ function App() {
   const voicePlayerRef = useRef(null)
   const voiceAnswerRef = useRef('')
   const voiceResponseStartedRef = useRef(false)
+  const voiceStoppingRef = useRef(false)
 
   // Load chat history on mount
   useEffect(() => {
@@ -96,6 +97,7 @@ function App() {
     setVoiceStatus('Connecting')
     voiceAnswerRef.current = ''
     voiceResponseStartedRef.current = false
+    voiceStoppingRef.current = false
 
     try {
       const socket = createVoiceLiveSocket()
@@ -142,14 +144,15 @@ function App() {
 
   const stopVoiceSession = async () => {
     const socket = voiceSocketRef.current
+    voiceStoppingRef.current = true
+    setVoiceStatus('Ending')
     if (socket?.readyState === WebSocket.OPEN) {
       if (voiceRecorderRef.current) {
         await voiceRecorderRef.current.stop()
         voiceRecorderRef.current = null
       }
-      setVoiceStatus('Thinking')
-      voiceResponseStartedRef.current = true
       socket.send(JSON.stringify({ type: 'voice.stop' }))
+      socket.close()
       return
     }
     await cleanupVoiceSession()
@@ -168,6 +171,7 @@ function App() {
       voicePlayerRef.current = null
     }
     voiceSocketRef.current = null
+    voiceStoppingRef.current = false
   }
 
   const handleVoiceEvent = async (payload) => {
@@ -183,6 +187,22 @@ function App() {
         modelUsed: 'Azure-Speech-Voice-Live',
         reason: 'Microphone input -> Voice Live realtime session',
       }])
+      setVoiceStatus('Voice error')
+      return
+    }
+
+    if (payload.type === 'input_audio_buffer.speech_started') {
+      setVoiceStatus('Listening')
+      return
+    }
+
+    if (payload.type === 'input_audio_buffer.speech_stopped') {
+      setVoiceStatus('Thinking')
+      return
+    }
+
+    if (payload.type === 'response.created') {
+      setVoiceStatus('Thinking')
       return
     }
 
@@ -207,7 +227,7 @@ function App() {
       return
     }
 
-    if (payload.type === 'response.audio_transcript.done' || payload.type === 'response.done') {
+    if (payload.type === 'response.audio_transcript.done') {
       const answer = voiceAnswerRef.current.trim()
       if (answer) {
         setMessages(prev => [...prev, {
@@ -218,10 +238,24 @@ function App() {
         }])
         voiceAnswerRef.current = ''
       }
-      if (voiceResponseStartedRef.current) {
+      return
+    }
+
+    if (payload.type === 'response.done') {
+      const answer = voiceAnswerRef.current.trim()
+      if (answer) {
+        setMessages(prev => [...prev, {
+          role: 'assistant',
+          content: answer,
+          modelUsed: 'Azure-Speech-Voice-Live',
+          reason: 'Microphone input -> Voice Live realtime session',
+        }])
+        voiceAnswerRef.current = ''
+      }
+      if (voiceResponseStartedRef.current && !voiceStoppingRef.current) {
         await voicePlayerRef.current?.waitUntilDone()
-        voiceSocketRef.current?.close()
-        await cleanupVoiceSession()
+        voiceResponseStartedRef.current = false
+        setVoiceStatus('Listening')
       }
     }
   }
@@ -246,6 +280,17 @@ function App() {
       </header>
 
       <main className="min-h-0 flex-1">
+        {isVoiceActive && (
+          <div className="mx-auto flex w-full max-w-5xl px-4 pt-3 sm:px-6">
+            <div className={`voice-live-banner ${voiceStatus === 'Speaking' ? 'voice-live-speaking' : ''}`}>
+              <span className="voice-live-orb" aria-hidden="true" />
+              <div>
+                <p className="text-sm font-medium text-slate-100">Voice Live is on</p>
+                <p className="text-xs text-slate-400">{voiceStatus || 'Listening'} until you stop it</p>
+              </div>
+            </div>
+          </div>
+        )}
         <MessageList
           messages={messages}
           isLoading={isLoading}

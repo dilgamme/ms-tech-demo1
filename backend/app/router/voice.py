@@ -49,7 +49,13 @@ def _session_update_event() -> dict:
                 "model": "azure-speech",
                 "language": "en",
             },
-            "turn_detection": None,
+            "turn_detection": {
+                "type": "azure_semantic_vad",
+                "threshold": 0.7,
+                "prefix_padding_ms": 500,
+                "silence_duration_ms": 1600,
+                "create_response": True,
+            },
             "temperature": 0.8,
             "max_response_output_tokens": 600,
         },
@@ -89,15 +95,8 @@ async def voice_live(websocket: WebSocket):
                 message = await websocket.receive_text()
                 payload = json.loads(message)
                 if payload.get("type") == "voice.stop":
-                    await azure_ws.send(json.dumps({"type": "input_audio_buffer.commit"}))
-                    await azure_ws.send(json.dumps({
-                        "type": "response.create",
-                        "response": {
-                            "modalities": ["text", "audio"],
-                            "output_audio_format": "pcm16",
-                        },
-                    }))
-                    continue
+                    await azure_ws.close()
+                    break
                 await azure_ws.send(message)
 
         async def azure_to_browser():
