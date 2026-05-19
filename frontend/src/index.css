@@ -66,8 +66,12 @@ body {
   animation-duration: 0.75s;
 }
 
+.voice-end-button {
+  @apply ml-auto inline-flex h-9 items-center justify-center rounded-lg border border-rose-400/30 bg-rose-500/10 px-3 text-xs font-medium text-rose-100 transition hover:border-rose-300/60 hover:bg-rose-500/20;
+}
+
 .voice-live-wave {
-  @apply ml-auto hidden h-8 items-center gap-1 sm:flex;
+  @apply hidden h-8 items-center gap-1 sm:flex;
 }
 
 .voice-live-wave span {

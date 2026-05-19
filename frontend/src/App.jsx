@@ -35,6 +35,10 @@ function App() {
   const voiceRecorderRef = useRef(null)
   const voicePlayerRef = useRef(null)
   const voiceAnswerRef = useRef('')
+  const voiceTranscriptTargetRef = useRef('')
+  const voiceTranscriptDisplayedRef = useRef('')
+  const voiceTranscriptTimerRef = useRef(null)
+  const voicePendingMetricsRef = useRef(null)
   const voiceUserTranscriptRef = useRef('')
   const voiceResponseStartedRef = useRef(false)
   const voiceStoppingRef = useRef(false)
@@ -136,6 +140,9 @@ function App() {
 
     setVoiceStatus('Connecting')
     voiceAnswerRef.current = ''
+    voiceTranscriptTargetRef.current = ''
+    voiceTranscriptDisplayedRef.current = ''
+    voicePendingMetricsRef.current = null
     voiceUserTranscriptRef.current = ''
     voiceResponseStartedRef.current = false
     voiceStoppingRef.current = false
@@ -143,6 +150,11 @@ function App() {
     voiceUserMessageIdRef.current = null
     voiceUserTranscriptRef.current = ''
     voiceResponseStartedAtRef.current = null
+
+    if (voiceTranscriptTimerRef.current) {
+      window.clearInterval(voiceTranscriptTimerRef.current)
+      voiceTranscriptTimerRef.current = null
+    }
 
     try {
       const socket = createVoiceLiveSocket()
@@ -223,6 +235,14 @@ function App() {
     voiceAssistantMessageIdRef.current = null
     voiceUserMessageIdRef.current = null
     voiceResponseStartedAtRef.current = null
+    voiceTranscriptTargetRef.current = ''
+    voiceTranscriptDisplayedRef.current = ''
+    voicePendingMetricsRef.current = null
+
+    if (voiceTranscriptTimerRef.current) {
+      window.clearInterval(voiceTranscriptTimerRef.current)
+      voiceTranscriptTimerRef.current = null
+    }
   }
 
   const upsertVoiceUserMessage = (content, isStreaming = true) => {
@@ -299,6 +319,57 @@ function App() {
     voiceAssistantMessageIdRef.current = null
   }
 
+  const finishVoiceTranscriptReveal = () => {
+    if (voiceTranscriptTimerRef.current) {
+      window.clearInterval(voiceTranscriptTimerRef.current)
+      voiceTranscriptTimerRef.current = null
+    }
+
+    if (voicePendingMetricsRef.current) {
+      finalizeVoiceAssistantMessage(voicePendingMetricsRef.current)
+      voicePendingMetricsRef.current = null
+      voiceAnswerRef.current = ''
+      voiceTranscriptTargetRef.current = ''
+      voiceTranscriptDisplayedRef.current = ''
+    }
+  }
+
+  const revealNextVoiceTranscriptWord = () => {
+    const target = voiceTranscriptTargetRef.current
+    const displayed = voiceTranscriptDisplayedRef.current
+
+    if (!target || displayed.length >= target.length) {
+      finishVoiceTranscriptReveal()
+      return
+    }
+
+    const remaining = target.slice(displayed.length)
+    const nextWord = remaining.match(/^\s*\S+\s*/)
+    const nextText = nextWord?.[0] || remaining.slice(0, 1)
+    const updated = displayed + nextText
+
+    voiceTranscriptDisplayedRef.current = updated
+    upsertVoiceAssistantMessage(updated.trimStart(), true)
+  }
+
+  const startVoiceTranscriptReveal = () => {
+    if (voiceTranscriptTimerRef.current) {
+      return
+    }
+
+    revealNextVoiceTranscriptWord()
+    voiceTranscriptTimerRef.current = window.setInterval(revealNextVoiceTranscriptWord, 90)
+  }
+
+  const queueVoiceTranscript = (text) => {
+    if (!text) {
+      return
+    }
+
+    voiceTranscriptTargetRef.current += text
+    startVoiceTranscriptReveal()
+  }
+
   const handleVoiceEvent = async (payload) => {
     if (payload.type === 'voice.connected') {
       setVoiceStatus('Listening')
@@ -324,6 +395,10 @@ function App() {
           voiceSocketRef.current.send(JSON.stringify({ type: 'response.cancel' }))
         }
         finalizeVoiceAssistantMessage()
+        finishVoiceTranscriptReveal()
+        voiceTranscriptTargetRef.current = ''
+        voiceTranscriptDisplayedRef.current = ''
+        voicePendingMetricsRef.current = null
         voiceResponseStartedRef.current = false
       }
       voiceUserMessageIdRef.current = null
@@ -370,14 +445,15 @@ function App() {
     if (payload.type === 'response.audio_transcript.delta' && payload.delta) {
       voiceResponseStartedRef.current = true
       voiceAnswerRef.current += payload.delta
-      upsertVoiceAssistantMessage(voiceAnswerRef.current, true)
+      queueVoiceTranscript(payload.delta)
       return
     }
 
     if (payload.type === 'response.audio_transcript.done') {
       const answer = voiceAnswerRef.current.trim()
       if (answer) {
-        upsertVoiceAssistantMessage(answer, false)
+        const missingText = answer.slice(voiceTranscriptTargetRef.current.trimStart().length)
+        queueVoiceTranscript(missingText)
       }
       return
     }
@@ -391,11 +467,14 @@ function App() {
         ...(latencyMs ? { latencyMs } : {}),
       }
       if (answer) {
-        upsertVoiceAssistantMessage(answer, false, metrics)
+        const missingText = answer.slice(voiceTranscriptTargetRef.current.trimStart().length)
+        queueVoiceTranscript(missingText)
       }
-      finalizeVoiceAssistantMessage(metrics)
-      voiceAnswerRef.current = ''
+      voicePendingMetricsRef.current = metrics
       voiceResponseStartedAtRef.current = null
+      if (!voiceTranscriptTimerRef.current) {
+        finishVoiceTranscriptReveal()
+      }
       if (voiceResponseStartedRef.current && !voiceStoppingRef.current) {
         await voicePlayerRef.current?.waitUntilDone()
         voiceResponseStartedRef.current = false
@@ -434,6 +513,13 @@ function App() {
                   {voiceStatus || 'Listening'} until you stop it · {Math.floor(voiceElapsedSeconds / 60)}:{String(voiceElapsedSeconds % 60).padStart(2, '0')}
                 </p>
               </div>
+              <button
+                type="button"
+                onClick={stopVoiceSession}
+                className="voice-end-button"
+              >
+                End conversation
+              </button>
               <div className="voice-live-wave" aria-hidden="true">
                 <span />
                 <span />
