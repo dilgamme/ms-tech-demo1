@@ -45,9 +45,13 @@ export const createPcmRecorder = async (onAudioChunk) => {
 export const createPcmPlayer = () => {
   const audioContext = new AudioContext({ sampleRate: TARGET_SAMPLE_RATE })
   let nextStartTime = audioContext.currentTime
+  let closed = false
 
   return {
     play: async (base64Audio) => {
+      if (closed) {
+        return
+      }
       if (audioContext.state === 'suspended') {
         await audioContext.resume()
       }
@@ -67,8 +71,19 @@ export const createPcmPlayer = () => {
       source.start(startAt)
       nextStartTime = startAt + audioBuffer.duration
     },
+    waitUntilDone: async () => {
+      const remainingMs = Math.max(0, (nextStartTime - audioContext.currentTime) * 1000)
+      if (remainingMs > 0) {
+        await new Promise((resolve) => {
+          window.setTimeout(resolve, remainingMs + 150)
+        })
+      }
+    },
     close: async () => {
-      await audioContext.close()
+      if (!closed) {
+        closed = true
+        await audioContext.close()
+      }
     },
   }
 }

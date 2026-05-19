@@ -219,6 +219,7 @@ function App() {
         voiceAnswerRef.current = ''
       }
       if (voiceResponseStartedRef.current) {
+        await voicePlayerRef.current?.waitUntilDone()
         voiceSocketRef.current?.close()
         await cleanupVoiceSession()
       }
