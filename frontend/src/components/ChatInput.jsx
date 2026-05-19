@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 
-export const ChatInput = ({ onSend, isLoading }) => {
+export const ChatInput = ({ onSend, isLoading, isVoiceActive, voiceStatus, onToggleVoice }) => {
   const [input, setInput] = useState('')
   const inputRef = useRef(null)
 
@@ -42,9 +42,10 @@ export const ChatInput = ({ onSend, isLoading }) => {
             <div className="flex items-center gap-2">
               <button
                 type="button"
-                disabled
-                className="control-button-disabled"
-                title="Microphone support coming later"
+                onClick={onToggleVoice}
+                disabled={isLoading}
+                className={isVoiceActive ? 'control-button-active' : 'control-button'}
+                title={isVoiceActive ? 'Stop voice session' : 'Start voice session'}
                 aria-label="Microphone"
               >
                 <svg viewBox="0 0 24 24" aria-hidden="true" className="h-4 w-4">
@@ -52,6 +53,11 @@ export const ChatInput = ({ onSend, isLoading }) => {
                   <path d="M5 11a7 7 0 0 0 14 0M12 18v3M9 21h6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
                 </svg>
               </button>
+              {voiceStatus && (
+                <span className="hidden text-xs text-emerald-300 sm:inline">
+                  {voiceStatus}
+                </span>
+              )}
               <button
                 type="button"
                 disabled

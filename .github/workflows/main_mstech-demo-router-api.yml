@@ -9,6 +9,7 @@ on:
     - main
     - feature/improve-model-routing
     - feature/reduce-router-latency
+    - feature/voice-live
   workflow_dispatch:
 
 jobs:

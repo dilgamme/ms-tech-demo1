@@ -13,6 +13,13 @@ class Settings(BaseSettings):
     
     # Frontend URL for CORS
     FRONTEND_URL: Optional[str] = None
+
+    # Azure Voice Live
+    VOICE_LIVE_ENDPOINT: Optional[str] = None
+    VOICE_LIVE_KEY: Optional[str] = None
+    VOICE_LIVE_MODEL: str = "gpt-realtime"
+    VOICE_LIVE_VOICE: str = "en-US-Ava:DragonHDLatestNeural"
+    VOICE_LIVE_API_VERSION: str = "2025-10-01"
     
     # API settings
     LOG_LEVEL: str = "INFO"

@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { routePrompt } from './services/api'
+import { createPcmPlayer, createPcmRecorder, createVoiceLiveSocket } from './services/voiceLive'
 import { MessageList } from './components/MessageList'
 import { ChatInput } from './components/ChatInput'
 import './index.css'
@@ -11,6 +12,12 @@ const MAX_CONTEXT_CHARS = 1200
 function App() {
   const [messages, setMessages] = useState([])
   const [isLoading, setIsLoading] = useState(false)
+  const [isVoiceActive, setIsVoiceActive] = useState(false)
+  const [voiceStatus, setVoiceStatus] = useState('')
+  const voiceSocketRef = useRef(null)
+  const voiceRecorderRef = useRef(null)
+  const voicePlayerRef = useRef(null)
+  const voiceAnswerRef = useRef('')
 
   // Load chat history on mount
   useEffect(() => {
@@ -28,6 +35,12 @@ function App() {
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(messages))
   }, [messages])
+
+  useEffect(() => {
+    return () => {
+      stopVoiceSession()
+    }
+  }, [])
 
   const handleSendMessage = async (prompt) => {
     if (!prompt?.trim() || isLoading) {
@@ -73,6 +86,130 @@ function App() {
     }
   }
 
+  const startVoiceSession = async () => {
+    if (isVoiceActive) {
+      await stopVoiceSession()
+      return
+    }
+
+    setVoiceStatus('Connecting')
+    voiceAnswerRef.current = ''
+
+    try {
+      const socket = createVoiceLiveSocket()
+      const player = createPcmPlayer()
+      voiceSocketRef.current = socket
+      voicePlayerRef.current = player
+
+      socket.onopen = async () => {
+        setIsVoiceActive(true)
+        setVoiceStatus('Listening')
+        voiceRecorderRef.current = await createPcmRecorder((base64Audio) => {
+          if (socket.readyState === WebSocket.OPEN) {
+            socket.send(JSON.stringify({
+              type: 'input_audio_buffer.append',
+              audio: base64Audio,
+            }))
+          }
+        })
+      }
+
+      socket.onmessage = async (event) => {
+        const payload = JSON.parse(event.data)
+        handleVoiceEvent(payload)
+      }
+
+      socket.onerror = () => {
+        setVoiceStatus('Voice error')
+      }
+
+      socket.onclose = async () => {
+        await cleanupVoiceSession()
+      }
+    } catch (error) {
+      setVoiceStatus('')
+      setMessages(prev => [...prev, {
+        role: 'assistant',
+        content: `Voice error: ${error.message || 'Unable to start microphone session'}`,
+        modelUsed: 'Azure-Speech-Voice-Live',
+        reason: 'Microphone input -> Voice Live realtime session',
+      }])
+      await cleanupVoiceSession()
+    }
+  }
+
+  const stopVoiceSession = async () => {
+    const socket = voiceSocketRef.current
+    if (socket?.readyState === WebSocket.OPEN) {
+      socket.send(JSON.stringify({ type: 'voice.stop' }))
+      socket.close()
+    }
+    await cleanupVoiceSession()
+  }
+
+  const cleanupVoiceSession = async () => {
+    setIsVoiceActive(false)
+    setVoiceStatus('')
+
+    if (voiceRecorderRef.current) {
+      await voiceRecorderRef.current.stop()
+      voiceRecorderRef.current = null
+    }
+    if (voicePlayerRef.current) {
+      await voicePlayerRef.current.close()
+      voicePlayerRef.current = null
+    }
+    voiceSocketRef.current = null
+  }
+
+  const handleVoiceEvent = async (payload) => {
+    if (payload.type === 'voice.connected') {
+      setVoiceStatus('Listening')
+      return
+    }
+
+    if (payload.type === 'voice.error' || payload.type === 'error') {
+      setMessages(prev => [...prev, {
+        role: 'assistant',
+        content: `Voice error: ${payload.message || payload.error?.message || 'Voice Live request failed'}`,
+        modelUsed: 'Azure-Speech-Voice-Live',
+        reason: 'Microphone input -> Voice Live realtime session',
+      }])
+      return
+    }
+
+    if (payload.type === 'conversation.item.input_audio_transcription.completed' && payload.transcript) {
+      setMessages(prev => [...prev, {
+        role: 'user',
+        content: payload.transcript,
+      }])
+      return
+    }
+
+    if (payload.type === 'response.audio.delta' && payload.delta) {
+      await voicePlayerRef.current?.play(payload.delta)
+      return
+    }
+
+    if (payload.type === 'response.audio_transcript.delta' && payload.delta) {
+      voiceAnswerRef.current += payload.delta
+      return
+    }
+
+    if (payload.type === 'response.audio_transcript.done' || payload.type === 'response.done') {
+      const answer = voiceAnswerRef.current.trim()
+      if (answer) {
+        setMessages(prev => [...prev, {
+          role: 'assistant',
+          content: answer,
+          modelUsed: 'Azure-Speech-Voice-Live',
+          reason: 'Microphone input -> Voice Live realtime session',
+        }])
+        voiceAnswerRef.current = ''
+      }
+    }
+  }
+
   return (
     <div className="flex h-screen flex-col bg-slate-950 text-slate-100">
       <header className="border-b border-slate-800 bg-slate-950/95">
@@ -103,6 +240,9 @@ function App() {
       <ChatInput
         onSend={handleSendMessage}
         isLoading={isLoading}
+        isVoiceActive={isVoiceActive}
+        voiceStatus={voiceStatus}
+        onToggleVoice={startVoiceSession}
       />
     </div>
   )

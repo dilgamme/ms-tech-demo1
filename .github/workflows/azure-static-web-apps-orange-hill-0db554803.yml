@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - feature/voice-live
   pull_request:
     types: [opened, synchronize, reopened, closed]
     branches:
