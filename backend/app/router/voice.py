@@ -29,6 +29,7 @@ def _voice_live_url() -> str:
 def _session_update_event() -> dict:
     return {
         "type": "session.update",
+        "event_id": "mstech-demo-session-update",
         "session": {
             "modalities": ["text", "audio"],
             "instructions": (
@@ -36,19 +37,27 @@ def _session_update_event() -> dict:
                 "Answer clearly, briefly, and naturally. "
                 "When users ask about the architecture, explain the model-routing demo in practical Azure terms."
             ),
-            "voice": settings.VOICE_LIVE_VOICE,
+            "voice": {
+                "name": settings.VOICE_LIVE_VOICE,
+                "type": "azure-standard",
+                "temperature": 0.8,
+            },
             "input_audio_format": "pcm16",
             "output_audio_format": "pcm16",
+            "input_audio_sampling_rate": 24000,
             "input_audio_transcription": {
-                "model": "whisper-1"
+                "model": "azure-speech",
+                "language": "en",
             },
             "turn_detection": {
-                "type": "server_vad",
+                "type": "azure_semantic_vad",
                 "threshold": 0.5,
                 "prefix_padding_ms": 300,
-                "silence_duration_ms": 700,
+                "silence_duration_ms": 500,
                 "create_response": True,
             },
+            "temperature": 0.8,
+            "max_response_output_tokens": 600,
         },
     }
 
@@ -86,8 +95,14 @@ async def voice_live(websocket: WebSocket):
                 message = await websocket.receive_text()
                 payload = json.loads(message)
                 if payload.get("type") == "voice.stop":
-                    await azure_ws.send(json.dumps({"type": "input_audio_buffer.commit"}))
-                    await azure_ws.send(json.dumps({"type": "response.create"}))
+                    await azure_ws.send(json.dumps({
+                        "type": "response.create",
+                        "response": {
+                            "modalities": ["text", "audio"],
+                            "output_audio_format": "pcm16",
+                            "max_response_output_tokens": 600,
+                        },
+                    }))
                     continue
                 await azure_ws.send(message)
 

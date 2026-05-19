@@ -18,6 +18,7 @@ function App() {
   const voiceRecorderRef = useRef(null)
   const voicePlayerRef = useRef(null)
   const voiceAnswerRef = useRef('')
+  const voiceResponseStartedRef = useRef(false)
 
   // Load chat history on mount
   useEffect(() => {
@@ -94,6 +95,7 @@ function App() {
 
     setVoiceStatus('Connecting')
     voiceAnswerRef.current = ''
+    voiceResponseStartedRef.current = false
 
     try {
       const socket = createVoiceLiveSocket()
@@ -141,8 +143,14 @@ function App() {
   const stopVoiceSession = async () => {
     const socket = voiceSocketRef.current
     if (socket?.readyState === WebSocket.OPEN) {
+      if (voiceRecorderRef.current) {
+        await voiceRecorderRef.current.stop()
+        voiceRecorderRef.current = null
+      }
+      setVoiceStatus('Thinking')
+      voiceResponseStartedRef.current = true
       socket.send(JSON.stringify({ type: 'voice.stop' }))
-      socket.close()
+      return
     }
     await cleanupVoiceSession()
   }
@@ -187,11 +195,14 @@ function App() {
     }
 
     if (payload.type === 'response.audio.delta' && payload.delta) {
+      voiceResponseStartedRef.current = true
+      setVoiceStatus('Speaking')
       await voicePlayerRef.current?.play(payload.delta)
       return
     }
 
     if (payload.type === 'response.audio_transcript.delta' && payload.delta) {
+      voiceResponseStartedRef.current = true
       voiceAnswerRef.current += payload.delta
       return
     }
@@ -206,6 +217,10 @@ function App() {
           reason: 'Microphone input -> Voice Live realtime session',
         }])
         voiceAnswerRef.current = ''
+      }
+      if (voiceResponseStartedRef.current) {
+        voiceSocketRef.current?.close()
+        await cleanupVoiceSession()
       }
     }
   }
