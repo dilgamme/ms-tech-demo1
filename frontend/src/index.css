@@ -66,6 +66,40 @@ body {
   animation-duration: 0.75s;
 }
 
+.voice-live-wave {
+  @apply ml-auto hidden h-8 items-center gap-1 sm:flex;
+}
+
+.voice-live-wave span {
+  @apply block w-1 rounded-full bg-emerald-300/70;
+  animation: voice-wave 1s ease-in-out infinite;
+}
+
+.voice-live-wave span:nth-child(1) {
+  height: 10px;
+  animation-delay: 0s;
+}
+
+.voice-live-wave span:nth-child(2) {
+  height: 18px;
+  animation-delay: 0.12s;
+}
+
+.voice-live-wave span:nth-child(3) {
+  height: 24px;
+  animation-delay: 0.24s;
+}
+
+.voice-live-wave span:nth-child(4) {
+  height: 14px;
+  animation-delay: 0.36s;
+}
+
+.live-cursor {
+  @apply ml-1 inline-block h-4 w-1 translate-y-0.5 rounded-full bg-emerald-300;
+  animation: cursor-blink 0.9s ease-in-out infinite;
+}
+
 .loading-dots {
   display: inline-flex;
   gap: 4px;
@@ -109,5 +143,25 @@ body {
   50% {
     opacity: 1;
     transform: scale(1.15);
+  }
+}
+
+@keyframes voice-wave {
+  0%, 100% {
+    transform: scaleY(0.55);
+    opacity: 0.45;
+  }
+  50% {
+    transform: scaleY(1);
+    opacity: 1;
+  }
+}
+
+@keyframes cursor-blink {
+  0%, 100% {
+    opacity: 0.2;
+  }
+  50% {
+    opacity: 1;
   }
 }

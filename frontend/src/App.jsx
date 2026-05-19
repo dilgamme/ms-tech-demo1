@@ -8,6 +8,23 @@ import './index.css'
 const STORAGE_KEY = 'mstech_chat_history'
 const MAX_CONTEXT_MESSAGES = 6
 const MAX_CONTEXT_CHARS = 1200
+const VOICE_MODEL = 'Azure-Speech-Voice-Live'
+const VOICE_REASON = 'Microphone input -> Voice Live realtime session'
+
+const createMessageId = () => `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`
+
+const extractUsageMetrics = (payload) => {
+  const usage = payload?.response?.usage || payload?.usage
+  if (!usage) {
+    return null
+  }
+
+  return {
+    inputTokens: usage.input_tokens ?? usage.prompt_tokens,
+    outputTokens: usage.output_tokens ?? usage.completion_tokens,
+    totalTokens: usage.total_tokens,
+  }
+}
 
 function App() {
   const [messages, setMessages] = useState([])
@@ -18,8 +35,14 @@ function App() {
   const voiceRecorderRef = useRef(null)
   const voicePlayerRef = useRef(null)
   const voiceAnswerRef = useRef('')
+  const voiceUserTranscriptRef = useRef('')
   const voiceResponseStartedRef = useRef(false)
   const voiceStoppingRef = useRef(false)
+  const voiceAssistantMessageIdRef = useRef(null)
+  const voiceUserMessageIdRef = useRef(null)
+  const voiceResponseStartedAtRef = useRef(null)
+  const [voiceStartedAt, setVoiceStartedAt] = useState(null)
+  const [voiceElapsedSeconds, setVoiceElapsedSeconds] = useState(0)
 
   // Load chat history on mount
   useEffect(() => {
@@ -44,6 +67,19 @@ function App() {
     }
   }, [])
 
+  useEffect(() => {
+    if (!isVoiceActive || !voiceStartedAt) {
+      setVoiceElapsedSeconds(0)
+      return undefined
+    }
+
+    const interval = window.setInterval(() => {
+      setVoiceElapsedSeconds(Math.floor((Date.now() - voiceStartedAt) / 1000))
+    }, 1000)
+
+    return () => window.clearInterval(interval)
+  }, [isVoiceActive, voiceStartedAt])
+
   const handleSendMessage = async (prompt) => {
     if (!prompt?.trim() || isLoading) {
       return
@@ -51,6 +87,7 @@ function App() {
 
     // Add user message
     const userMessage = {
+      id: createMessageId(),
       role: 'user',
       content: prompt,
     }
@@ -64,14 +101,17 @@ function App() {
       }))
       const response = await routePrompt(prompt, contextMessages)
       const assistantMessage = {
+        id: createMessageId(),
         role: 'assistant',
         content: response.answer,
         modelUsed: response.modelUsed,
         reason: response.reason,
+        metrics: response.metrics,
       }
       setMessages(prev => [...prev, assistantMessage])
     } catch (error) {
       const errorMessage = {
+        id: createMessageId(),
         role: 'assistant',
         content: `Error: ${error.response?.data?.detail || error.message || 'Failed to get response'}`,
       }
@@ -96,8 +136,13 @@ function App() {
 
     setVoiceStatus('Connecting')
     voiceAnswerRef.current = ''
+    voiceUserTranscriptRef.current = ''
     voiceResponseStartedRef.current = false
     voiceStoppingRef.current = false
+    voiceAssistantMessageIdRef.current = null
+    voiceUserMessageIdRef.current = null
+    voiceUserTranscriptRef.current = ''
+    voiceResponseStartedAtRef.current = null
 
     try {
       const socket = createVoiceLiveSocket()
@@ -107,6 +152,7 @@ function App() {
 
       socket.onopen = async () => {
         setIsVoiceActive(true)
+        setVoiceStartedAt(Date.now())
         setVoiceStatus('Listening')
         voiceRecorderRef.current = await createPcmRecorder((base64Audio) => {
           if (socket.readyState === WebSocket.OPEN) {
@@ -133,10 +179,11 @@ function App() {
     } catch (error) {
       setVoiceStatus('')
       setMessages(prev => [...prev, {
+        id: createMessageId(),
         role: 'assistant',
         content: `Voice error: ${error.message || 'Unable to start microphone session'}`,
-        modelUsed: 'Azure-Speech-Voice-Live',
-        reason: 'Microphone input -> Voice Live realtime session',
+        modelUsed: VOICE_MODEL,
+        reason: VOICE_REASON,
       }])
       await cleanupVoiceSession()
     }
@@ -161,6 +208,7 @@ function App() {
   const cleanupVoiceSession = async () => {
     setIsVoiceActive(false)
     setVoiceStatus('')
+    setVoiceStartedAt(null)
 
     if (voiceRecorderRef.current) {
       await voiceRecorderRef.current.stop()
@@ -172,6 +220,83 @@ function App() {
     }
     voiceSocketRef.current = null
     voiceStoppingRef.current = false
+    voiceAssistantMessageIdRef.current = null
+    voiceUserMessageIdRef.current = null
+    voiceResponseStartedAtRef.current = null
+  }
+
+  const upsertVoiceUserMessage = (content, isStreaming = true) => {
+    const trimmed = content?.trim()
+    if (!trimmed) {
+      return
+    }
+
+    if (!voiceUserMessageIdRef.current) {
+      const id = createMessageId()
+      voiceUserMessageIdRef.current = id
+      setMessages(prev => [...prev, {
+        id,
+        role: 'user',
+        content: trimmed,
+        isStreaming,
+      }])
+      return
+    }
+
+    const id = voiceUserMessageIdRef.current
+    setMessages(prev => prev.map(msg => (
+      msg.id === id ? { ...msg, content: trimmed, isStreaming } : msg
+    )))
+  }
+
+  const upsertVoiceAssistantMessage = (content, isStreaming = true, metrics = null) => {
+    if (!content) {
+      return
+    }
+
+    if (!voiceAssistantMessageIdRef.current) {
+      const id = createMessageId()
+      voiceAssistantMessageIdRef.current = id
+      setMessages(prev => [...prev, {
+        id,
+        role: 'assistant',
+        content,
+        modelUsed: VOICE_MODEL,
+        reason: VOICE_REASON,
+        isStreaming,
+        metrics,
+      }])
+      return
+    }
+
+    const id = voiceAssistantMessageIdRef.current
+    setMessages(prev => prev.map(msg => (
+      msg.id === id
+        ? {
+            ...msg,
+            content,
+            isStreaming,
+            metrics: metrics || msg.metrics,
+          }
+        : msg
+    )))
+  }
+
+  const finalizeVoiceAssistantMessage = (metrics = null) => {
+    const id = voiceAssistantMessageIdRef.current
+    if (!id) {
+      return
+    }
+    setMessages(prev => prev.map(msg => (
+      msg.id === id
+        ? {
+            ...msg,
+            isStreaming: false,
+            metrics: metrics || msg.metrics,
+          }
+        : msg
+    )))
+    voiceAssistantMessageIdRef.current = null
   }
 
   const handleVoiceEvent = async (payload) => {
@@ -182,16 +307,27 @@ function App() {
 
     if (payload.type === 'voice.error' || payload.type === 'error') {
       setMessages(prev => [...prev, {
+        id: createMessageId(),
         role: 'assistant',
         content: `Voice error: ${payload.message || payload.error?.message || 'Voice Live request failed'}`,
-        modelUsed: 'Azure-Speech-Voice-Live',
-        reason: 'Microphone input -> Voice Live realtime session',
+        modelUsed: VOICE_MODEL,
+        reason: VOICE_REASON,
       }])
       setVoiceStatus('Voice error')
       return
     }
 
     if (payload.type === 'input_audio_buffer.speech_started') {
+      if (voiceResponseStartedRef.current) {
+        voicePlayerRef.current?.interrupt()
+        if (voiceSocketRef.current?.readyState === WebSocket.OPEN) {
+          voiceSocketRef.current.send(JSON.stringify({ type: 'response.cancel' }))
+        }
+        finalizeVoiceAssistantMessage()
+        voiceResponseStartedRef.current = false
+      }
+      voiceUserMessageIdRef.current = null
+      voiceUserTranscriptRef.current = ''
       setVoiceStatus('Listening')
       return
     }
@@ -202,15 +338,25 @@ function App() {
     }
 
     if (payload.type === 'response.created') {
+      voiceResponseStartedAtRef.current = Date.now()
       setVoiceStatus('Thinking')
       return
     }
 
+    if (
+      (payload.type === 'conversation.item.input_audio_transcription.delta' ||
+        payload.type === 'input_audio_transcription.delta') &&
+      payload.delta
+    ) {
+      voiceUserTranscriptRef.current += payload.delta
+      upsertVoiceUserMessage(voiceUserTranscriptRef.current, true)
+      return
+    }
+
     if (payload.type === 'conversation.item.input_audio_transcription.completed' && payload.transcript) {
-      setMessages(prev => [...prev, {
-        role: 'user',
-        content: payload.transcript,
-      }])
+      upsertVoiceUserMessage(payload.transcript, false)
+      voiceUserMessageIdRef.current = null
+      voiceUserTranscriptRef.current = ''
       return
     }
 
@@ -224,34 +370,32 @@ function App() {
     if (payload.type === 'response.audio_transcript.delta' && payload.delta) {
       voiceResponseStartedRef.current = true
       voiceAnswerRef.current += payload.delta
+      upsertVoiceAssistantMessage(voiceAnswerRef.current, true)
       return
     }
 
     if (payload.type === 'response.audio_transcript.done') {
       const answer = voiceAnswerRef.current.trim()
       if (answer) {
-        setMessages(prev => [...prev, {
-          role: 'assistant',
-          content: answer,
-          modelUsed: 'Azure-Speech-Voice-Live',
-          reason: 'Microphone input -> Voice Live realtime session',
-        }])
-        voiceAnswerRef.current = ''
+        upsertVoiceAssistantMessage(answer, false)
       }
       return
     }
 
     if (payload.type === 'response.done') {
       const answer = voiceAnswerRef.current.trim()
-      if (answer) {
-        setMessages(prev => [...prev, {
-          role: 'assistant',
-          content: answer,
-          modelUsed: 'Azure-Speech-Voice-Live',
-          reason: 'Microphone input -> Voice Live realtime session',
-        }])
-        voiceAnswerRef.current = ''
+      const usageMetrics = extractUsageMetrics(payload)
+      const latencyMs = voiceResponseStartedAtRef.current ? Date.now() - voiceResponseStartedAtRef.current : null
+      const metrics = {
+        ...(usageMetrics || {}),
+        ...(latencyMs ? { latencyMs } : {}),
       }
+      if (answer) {
+        upsertVoiceAssistantMessage(answer, false, metrics)
+      }
+      finalizeVoiceAssistantMessage(metrics)
+      voiceAnswerRef.current = ''
+      voiceResponseStartedAtRef.current = null
       if (voiceResponseStartedRef.current && !voiceStoppingRef.current) {
         await voicePlayerRef.current?.waitUntilDone()
         voiceResponseStartedRef.current = false
@@ -286,7 +430,15 @@ function App() {
               <span className="voice-live-orb" aria-hidden="true" />
               <div>
                 <p className="text-sm font-medium text-slate-100">Voice Live is on</p>
-                <p className="text-xs text-slate-400">{voiceStatus || 'Listening'} until you stop it</p>
+                <p className="text-xs text-slate-400">
+                  {voiceStatus || 'Listening'} until you stop it · {Math.floor(voiceElapsedSeconds / 60)}:{String(voiceElapsedSeconds % 60).padStart(2, '0')}
+                </p>
+              </div>
+              <div className="voice-live-wave" aria-hidden="true">
+                <span />
+                <span />
+                <span />
+                <span />
               </div>
             </div>
           </div>

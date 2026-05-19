@@ -46,6 +46,7 @@ export const createPcmPlayer = () => {
   const audioContext = new AudioContext({ sampleRate: TARGET_SAMPLE_RATE })
   let nextStartTime = audioContext.currentTime
   let closed = false
+  const sources = new Set()
 
   return {
     play: async (base64Audio) => {
@@ -66,10 +67,25 @@ export const createPcmPlayer = () => {
       const source = audioContext.createBufferSource()
       source.buffer = audioBuffer
       source.connect(audioContext.destination)
+      sources.add(source)
+      source.onended = () => {
+        sources.delete(source)
+      }
 
       const startAt = Math.max(nextStartTime, audioContext.currentTime)
       source.start(startAt)
       nextStartTime = startAt + audioBuffer.duration
+    },
+    interrupt: () => {
+      sources.forEach((source) => {
+        try {
+          source.stop()
+        } catch {
+          // The source may already have ended.
+        }
+      })
+      sources.clear()
+      nextStartTime = audioContext.currentTime
     },
     waitUntilDone: async () => {
       const remainingMs = Math.max(0, (nextStartTime - audioContext.currentTime) * 1000)
@@ -82,6 +98,14 @@ export const createPcmPlayer = () => {
     close: async () => {
       if (!closed) {
         closed = true
+        sources.forEach((source) => {
+          try {
+            source.stop()
+          } catch {
+            // The source may already have ended.
+          }
+        })
+        sources.clear()
         await audioContext.close()
       }
     },

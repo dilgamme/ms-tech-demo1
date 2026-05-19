@@ -87,7 +87,10 @@ export const MessageList = ({ messages, isLoading, onSuggestionSelect }) => {
                 {!isUser && <SenderIcon role={msg.role} />}
                 <article className={`message-bubble ${isUser ? 'message-user' : 'message-assistant'}`}>
                   <div className="whitespace-pre-wrap leading-7">{msg.content}</div>
-                  {!isUser && <ModelIndicator modelUsed={msg.modelUsed} reason={msg.reason} />}
+                  {msg.isStreaming && (
+                    <span className="live-cursor" aria-label="Streaming response" />
+                  )}
+                  {!isUser && <ModelIndicator modelUsed={msg.modelUsed} reason={msg.reason} metrics={msg.metrics} />}
                 </article>
                 {isUser && <SenderIcon role={msg.role} />}
               </div>
