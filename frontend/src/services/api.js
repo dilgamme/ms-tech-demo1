@@ -22,4 +22,17 @@ export const routePrompt = async (prompt, messages = []) => {
   }
 }
 
+export const ragPrompt = async (question, topK = 5) => {
+  try {
+    const response = await api.post('/api/rag', {
+      question,
+      topK,
+    })
+    return response.data
+  } catch (error) {
+    console.error('RAG API Error:', error)
+    throw error
+  }
+}
+
 export default api

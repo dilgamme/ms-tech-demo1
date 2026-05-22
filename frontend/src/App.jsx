@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { routePrompt } from './services/api'
+import { ragPrompt, routePrompt } from './services/api'
 import { createPcmPlayer, createPcmRecorder, createVoiceLiveSocket } from './services/voiceLive'
 import { MessageList } from './components/MessageList'
 import { ChatInput } from './components/ChatInput'
@@ -29,6 +29,7 @@ const extractUsageMetrics = (payload) => {
 function App() {
   const [messages, setMessages] = useState([])
   const [isLoading, setIsLoading] = useState(false)
+  const [isRagMode, setIsRagMode] = useState(false)
   const [isVoiceActive, setIsVoiceActive] = useState(false)
   const [voiceStatus, setVoiceStatus] = useState('')
   const voiceSocketRef = useRef(null)
@@ -99,18 +100,24 @@ function App() {
     setIsLoading(true)
 
     try {
-      const contextMessages = messages.slice(-MAX_CONTEXT_MESSAGES).map(msg => ({
-        role: msg.role,
-        content: msg.content.slice(0, MAX_CONTEXT_CHARS),
-      }))
-      const response = await routePrompt(prompt, contextMessages)
+      let response
+      if (isRagMode) {
+        response = await ragPrompt(prompt, 5)
+      } else {
+        const contextMessages = messages.slice(-MAX_CONTEXT_MESSAGES).map(msg => ({
+          role: msg.role,
+          content: msg.content.slice(0, MAX_CONTEXT_CHARS),
+        }))
+        response = await routePrompt(prompt, contextMessages)
+      }
       const assistantMessage = {
         id: createMessageId(),
         role: 'assistant',
         content: response.answer,
         modelUsed: response.modelUsed,
-        reason: response.reason,
+        reason: response.reason || (isRagMode ? `RAG: Azure AI Search index ${response.indexUsed}` : undefined),
         metrics: response.metrics,
+        sources: response.sources,
       }
       setMessages(prev => [...prev, assistantMessage])
     } catch (error) {
@@ -542,6 +549,8 @@ function App() {
         isVoiceActive={isVoiceActive}
         voiceStatus={voiceStatus}
         onToggleVoice={startVoiceSession}
+        isRagMode={isRagMode}
+        onToggleRag={() => setIsRagMode(prev => !prev)}
       />
     </div>
   )

@@ -1,6 +1,14 @@
 import { useState, useRef, useEffect } from 'react'
 
-export const ChatInput = ({ onSend, isLoading, isVoiceActive, voiceStatus, onToggleVoice }) => {
+export const ChatInput = ({
+  onSend,
+  isLoading,
+  isVoiceActive,
+  voiceStatus,
+  onToggleVoice,
+  isRagMode,
+  onToggleRag,
+}) => {
   const [input, setInput] = useState('')
   const inputRef = useRef(null)
 
@@ -40,6 +48,22 @@ export const ChatInput = ({ onSend, isLoading, isVoiceActive, voiceStatus, onTog
 
           <div className="flex items-center justify-between gap-3 border-t border-slate-800 pt-2">
             <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={onToggleRag}
+                disabled={isLoading}
+                className={isRagMode ? 'control-button-active' : 'control-button'}
+                title={isRagMode ? 'Use model router' : 'Use indexed documents'}
+                aria-label="Toggle RAG document mode"
+              >
+                <svg viewBox="0 0 24 24" aria-hidden="true" className="h-4 w-4">
+                  <path d="M6 4h9l3 3v13H6z" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
+                  <path d="M15 4v4h4M9 12h6M9 16h6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                </svg>
+              </button>
+              <span className={`hidden text-xs sm:inline ${isRagMode ? 'text-emerald-300' : 'text-slate-500'}`}>
+                {isRagMode ? 'Docs' : 'Router'}
+              </span>
               <button
                 type="button"
                 onClick={onToggleVoice}

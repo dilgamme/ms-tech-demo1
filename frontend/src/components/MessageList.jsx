@@ -35,14 +35,49 @@ const SUGGESTIONS = [
     prompt: 'What is Microsoft Azure?',
   },
   {
+    label: 'Docs',
+    prompt: 'How long do refunds take?',
+  },
+  {
     label: 'Realtime',
     prompt: 'What is the weather in Warsaw today?',
   },
-  {
-    label: 'Reasoning',
-    prompt: 'Analyze this Azure architecture and tradeoffs.',
-  },
 ]
+
+const SourceList = ({ sources }) => {
+  if (!sources?.length) {
+    return null
+  }
+
+  const uniqueSources = sources
+    .filter(source => source?.title)
+    .filter((source, index, list) => (
+      list.findIndex(item => item.title === source.title && item.chunk === source.chunk) === index
+    ))
+    .slice(0, 3)
+
+  if (!uniqueSources.length) {
+    return null
+  }
+
+  return (
+    <div className="mt-4 border-t border-slate-800 pt-3">
+      <div className="mb-2 text-xs font-medium uppercase tracking-wide text-slate-500">Sources</div>
+      <div className="space-y-2">
+        {uniqueSources.map((source, index) => (
+          <details key={`${source.title}-${index}`} className="rounded-lg border border-slate-800 bg-slate-950/60 px-3 py-2">
+            <summary className="cursor-pointer text-sm font-medium text-slate-200">
+              {source.title}
+            </summary>
+            <p className="mt-2 max-h-24 overflow-hidden text-sm leading-6 text-slate-400">
+              {source.chunk}
+            </p>
+          </details>
+        ))}
+      </div>
+    </div>
+  )
+}
 
 export const MessageList = ({ messages, isLoading, onSuggestionSelect }) => {
   const bottomRef = useRef(null)
@@ -90,6 +125,7 @@ export const MessageList = ({ messages, isLoading, onSuggestionSelect }) => {
                   {msg.isStreaming && (
                     <span className="live-cursor" aria-label="Streaming response" />
                   )}
+                  {!isUser && <SourceList sources={msg.sources} />}
                   {!isUser && <ModelIndicator modelUsed={msg.modelUsed} reason={msg.reason} metrics={msg.metrics} />}
                 </article>
                 {isUser && <SenderIcon role={msg.role} />}
