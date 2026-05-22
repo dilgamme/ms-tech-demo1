@@ -35,7 +35,7 @@ const SUGGESTIONS = [
     prompt: 'What is Microsoft Azure?',
   },
   {
-    label: 'Docs',
+    label: 'Internal',
     prompt: 'How long do refunds take?',
   },
   {

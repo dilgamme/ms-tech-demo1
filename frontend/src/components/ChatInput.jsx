@@ -52,18 +52,22 @@ export const ChatInput = ({
                 type="button"
                 onClick={onToggleRag}
                 disabled={isLoading}
-                className={isRagMode ? 'control-button-active' : 'control-button'}
-                title={isRagMode ? 'Use model router' : 'Use indexed documents'}
-                aria-label="Toggle RAG document mode"
+                className={`inline-flex h-9 items-center gap-2 rounded-lg border px-3 text-xs font-medium transition ${
+                  isRagMode
+                    ? 'border-emerald-400/50 bg-emerald-500/15 text-emerald-100'
+                    : 'border-slate-700 bg-slate-900 text-slate-300 hover:border-slate-600 hover:bg-slate-800'
+                } disabled:cursor-not-allowed disabled:opacity-50`}
+                title={isRagMode ? 'Internal Search is on' : 'Internal Search is off'}
+                aria-label="Toggle Internal Search"
+                aria-pressed={isRagMode}
               >
                 <svg viewBox="0 0 24 24" aria-hidden="true" className="h-4 w-4">
                   <path d="M6 4h9l3 3v13H6z" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
                   <path d="M15 4v4h4M9 12h6M9 16h6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
                 </svg>
+                <span>Internal Search</span>
+                <span className={`h-2 w-2 rounded-full ${isRagMode ? 'bg-emerald-300' : 'bg-slate-600'}`} />
               </button>
-              <span className={`hidden text-xs sm:inline ${isRagMode ? 'text-emerald-300' : 'text-slate-500'}`}>
-                {isRagMode ? 'Docs' : 'Router'}
-              </span>
               <button
                 type="button"
                 onClick={onToggleVoice}
