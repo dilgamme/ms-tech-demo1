@@ -10,6 +10,7 @@ on:
     - feature/improve-model-routing
     - feature/reduce-router-latency
     - feature/voice-live
+    - rag-feature
   workflow_dispatch:
 
 jobs:

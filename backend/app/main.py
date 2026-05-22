@@ -5,6 +5,7 @@ import logging
 
 from app.config import settings
 from app.router.api import router as route_prompt_router
+from app.router.rag import router as rag_router
 from app.router.voice import router as voice_router
 
 # Configure logging
@@ -42,6 +43,7 @@ app.add_middleware(
 
 # Include router
 app.include_router(route_prompt_router)
+app.include_router(rag_router)
 app.include_router(voice_router)
 
 @app.get("/health")

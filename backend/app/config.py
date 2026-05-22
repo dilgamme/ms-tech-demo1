@@ -20,6 +20,13 @@ class Settings(BaseSettings):
     VOICE_LIVE_MODEL: str = "gpt-realtime"
     VOICE_LIVE_VOICE: str = "en-US-Ava:DragonHDLatestNeural"
     VOICE_LIVE_API_VERSION: str = "2025-10-01"
+
+    # Azure AI Search / RAG
+    AZURE_SEARCH_ENDPOINT: Optional[str] = None
+    AZURE_SEARCH_KEY: Optional[str] = None
+    AZURE_SEARCH_INDEX: str = "rag-1779444354799"
+    RAG_TOP_K: int = 5
+    RAG_MODEL: Optional[str] = None
     
     # API settings
     LOG_LEVEL: str = "INFO"

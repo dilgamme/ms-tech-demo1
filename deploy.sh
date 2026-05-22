@@ -44,6 +44,11 @@ az webapp config appsettings set \
     DEEPSEEK_MODEL="DeepSeek-V4-Flash" \
     ROUTER_MODEL="gpt-5.4-mini" \
     REASONING_MODEL="gpt-5-pro-reasoning" \
+    AZURE_SEARCH_ENDPOINT="https://mstech-demo-search.search.windows.net" \
+    AZURE_SEARCH_INDEX="rag-1779444354799" \
+    AZURE_SEARCH_KEY="<set-search-query-key-directly-in-app-service>" \
+    RAG_MODEL="gpt-5.4-mini" \
+    RAG_TOP_K="5" \
     WEBSITE_RUN_FROM_PACKAGE="1" \
     --no-wait
 

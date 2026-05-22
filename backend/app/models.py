@@ -14,5 +14,20 @@ class RoutingResponse(BaseModel):
     reason: str = Field(..., description="Reason for routing to this model")
     answer: str = Field(..., description="The model's response")
 
+class RagRequest(BaseModel):
+    question: str = Field(..., description="Question to answer using indexed RAG documents")
+    topK: Optional[int] = Field(default=None, ge=1, le=10, description="Number of chunks to retrieve")
+
+class RagSource(BaseModel):
+    title: str = Field(..., description="Source document title")
+    chunk: str = Field(..., description="Retrieved source chunk")
+    score: Optional[float] = Field(default=None, description="Search score")
+
+class RagResponse(BaseModel):
+    answer: str = Field(..., description="Answer grounded in retrieved documents")
+    modelUsed: str = Field(..., description="Name of the model used")
+    indexUsed: str = Field(..., description="Azure AI Search index used")
+    sources: List[RagSource] = Field(default_factory=list, description="Retrieved source chunks")
+
 class ErrorResponse(BaseModel):
     detail: str = Field(..., description="Error description")
