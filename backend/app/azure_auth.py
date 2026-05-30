@@ -31,3 +31,12 @@ def get_search_auth_headers() -> dict[str, str]:
     if not settings.AZURE_SEARCH_KEY:
         raise ValueError("AZURE_SEARCH_KEY is required when managed identity is disabled")
     return {"api-key": settings.AZURE_SEARCH_KEY}
+
+
+def get_voice_live_auth_headers() -> dict[str, str]:
+    if settings.USE_MANAGED_IDENTITY:
+        token = get_azure_credential().get_token(COGNITIVE_SERVICES_SCOPE)
+        return {"Authorization": f"Bearer {token.token}"}
+    if not settings.VOICE_LIVE_KEY:
+        raise ValueError("VOICE_LIVE_KEY is required when managed identity is disabled")
+    return {"api-key": settings.VOICE_LIVE_KEY}

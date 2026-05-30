@@ -6,6 +6,7 @@ from urllib.parse import urlencode
 import websockets
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
+from app.azure_auth import get_voice_live_auth_headers
 from app.config import settings
 
 router = APIRouter(prefix="/api", tags=["voice"])
@@ -66,19 +67,11 @@ def _session_update_event() -> dict:
 async def voice_live(websocket: WebSocket):
     await websocket.accept()
 
-    if not settings.VOICE_LIVE_KEY:
-        await websocket.send_json({
-            "type": "voice.error",
-            "message": "VOICE_LIVE_KEY is not configured on the backend.",
-        })
-        await websocket.close(code=1011)
-        return
-
     azure_ws = None
     try:
         azure_ws = await websockets.connect(
             _voice_live_url(),
-            additional_headers={"api-key": settings.VOICE_LIVE_KEY},
+            additional_headers=get_voice_live_auth_headers(),
             ping_interval=20,
             ping_timeout=20,
             max_size=8 * 1024 * 1024,
@@ -112,7 +105,7 @@ async def voice_live(websocket: WebSocket):
         try:
             await websocket.send_json({
                 "type": "voice.error",
-                "message": "Voice Live session failed. Check endpoint, key, model deployment, and region support.",
+                "message": "Voice Live session failed. Check endpoint, authentication, model deployment, and region support.",
             })
         except Exception:
             pass
