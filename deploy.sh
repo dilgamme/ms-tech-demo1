@@ -41,6 +41,7 @@ az webapp config appsettings set \
   --settings \
     AZURE_OPENAI_ENDPOINT="https://mstech-demo-resource.cognitiveservices.azure.com/" \
     AZURE_OPENAI_KEY="<set-rotated-key-directly-in-app-service>" \
+    USE_MANAGED_IDENTITY="true" \
     DEEPSEEK_MODEL="DeepSeek-V4-Flash" \
     ROUTER_MODEL="gpt-5.4-mini" \
     REASONING_MODEL="gpt-5-pro-reasoning" \

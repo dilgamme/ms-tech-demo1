@@ -3,6 +3,7 @@ import json
 import logging
 import re
 from openai import OpenAI
+from app.azure_auth import get_openai_api_key
 from app.config import settings
 from app.models import RoutingResponse
 from app.realtime_data import build_realtime_context, direct_realtime_answer
@@ -107,7 +108,7 @@ class ModelRouter:
     def __init__(self):
         endpoint = settings.AZURE_OPENAI_ENDPOINT.rstrip("/")
         self.client = OpenAI(
-            api_key=settings.AZURE_OPENAI_KEY,
+            api_key=get_openai_api_key(),
             base_url=f"{endpoint}/openai/v1/"
         )
         self.deepseek_model = settings.DEEPSEEK_MODEL

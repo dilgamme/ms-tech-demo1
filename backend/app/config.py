@@ -4,7 +4,8 @@ from typing import Optional
 class Settings(BaseSettings):
     # Azure OpenAI
     AZURE_OPENAI_ENDPOINT: str
-    AZURE_OPENAI_KEY: str
+    AZURE_OPENAI_KEY: Optional[str] = None
+    USE_MANAGED_IDENTITY: bool = False
     
     # Model names (deployment names in Azure)
     DEEPSEEK_MODEL: str = "DeepSeek-V4-Flash"

@@ -7,6 +7,7 @@ import urllib.request
 
 from openai import OpenAI
 
+from app.azure_auth import get_openai_api_key, get_search_auth_headers
 from app.config import settings
 from app.models import RagResponse, RagSource
 
@@ -21,16 +22,13 @@ class RagService:
     def __init__(self):
         if not settings.AZURE_SEARCH_ENDPOINT:
             raise ValueError("AZURE_SEARCH_ENDPOINT is not configured")
-        if not settings.AZURE_SEARCH_KEY:
-            raise ValueError("AZURE_SEARCH_KEY is not configured")
 
         endpoint = settings.AZURE_OPENAI_ENDPOINT.rstrip("/")
         self.openai_client = OpenAI(
-            api_key=settings.AZURE_OPENAI_KEY,
+            api_key=get_openai_api_key(),
             base_url=f"{endpoint}/openai/v1/"
         )
         self.search_endpoint = settings.AZURE_SEARCH_ENDPOINT.rstrip("/")
-        self.search_key = settings.AZURE_SEARCH_KEY
         self.index_name = settings.AZURE_SEARCH_INDEX
         self.answer_model = settings.RAG_MODEL or settings.ROUTER_MODEL
 
@@ -126,7 +124,7 @@ class RagService:
             method="POST",
             headers={
                 "Content-Type": "application/json",
-                "api-key": self.search_key
+                **get_search_auth_headers()
             }
         )
 
