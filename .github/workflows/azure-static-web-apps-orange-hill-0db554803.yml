@@ -4,8 +4,6 @@ on:
   push:
     branches:
       - main
-      - feature/voice-live
-      - rag-feature
   pull_request:
     types: [opened, synchronize, reopened, closed]
     branches:

@@ -7,11 +7,6 @@ on:
   push:
     branches:
     - main
-    - feature/improve-model-routing
-    - feature/reduce-router-latency
-    - feature/voice-live
-    - rag-feature
-    - managed-identity
   workflow_dispatch:
 
 jobs:
