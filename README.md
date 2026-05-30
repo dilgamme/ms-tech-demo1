@@ -43,7 +43,7 @@ Production-ready demo showcasing enterprise multi-model AI architecture with int
   - `DeepSeek-V4-Flash`
   - `gpt-5.4-mini`
   - `gpt-5-pro-reasoning`
-- Azure OpenAI endpoint and API key
+- Azure OpenAI endpoint and either managed identity access or an API key for local development
 - GitHub account
 - Node.js 18+ and Python 3.12+
 
@@ -103,7 +103,6 @@ az deployment group create \
 
 **Configure GitHub Secrets** (in your GitHub repo):
 - `AZURE_OPENAI_ENDPOINT`: Your Azure OpenAI endpoint
-- `AZURE_OPENAI_KEY`: Your Azure OpenAI API key
 - `VITE_API_URL`: Your backend App Service URL
 - `AZURE_STATIC_WEB_APPS_API_TOKEN_ORANGE_HILL_0DB554803`: Created by Azure Static Web Apps GitHub integration
 - `AzureAppService_PublishProfile_44751b3e1cc1412289a5ed70da06ca2f`: Created by Azure App Service GitHub Actions integration
@@ -158,7 +157,7 @@ Response:
 - ✅ GitHub Secrets for deployment
 - ✅ CORS configured for Static Web App
 - ✅ HTTPS enforced
-- 🔜 Managed Identity for Azure resources (future)
+- ✅ Managed Identity for Azure OpenAI and Azure AI Search in production
 
 ## 🛠️ Environment Variables
 
@@ -166,6 +165,7 @@ Response:
 ```
 AZURE_OPENAI_ENDPOINT=https://your-resource.openai.azure.com/
 AZURE_OPENAI_KEY=your-api-key
+USE_MANAGED_IDENTITY=false
 DEEPSEEK_MODEL=DeepSeek-V4-Flash
 ROUTER_MODEL=gpt-5.4-mini
 REASONING_MODEL=gpt-5-pro-reasoning
@@ -232,7 +232,6 @@ ms-tech-demo/
 - [ ] Persistent chat memory (CosmosDB)
 - [ ] RAG with Azure Search
 - [ ] Semantic Kernel integration
-- [ ] Managed Identity authentication
 - [ ] Advanced model telemetry
 - [ ] Response streaming
 
