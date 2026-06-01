@@ -25,6 +25,7 @@ resource appService 'Microsoft.Web/sites@2023-01-01' = {
     serverFarmId: appServicePlan.id
     httpsOnly: true
     siteConfig: {
+      alwaysOn: true
       linuxFxVersion: 'PYTHON|3.12'
       webSocketsEnabled: true
       appSettings: [

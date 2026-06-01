@@ -4,8 +4,8 @@ Production-ready demo showcasing enterprise multi-model AI architecture with int
 
 ## 🎯 Features
 
-- **Multi-Model Routing**: Intelligent routing between DeepSeek (cost-optimized) and GPT-5-Pro (advanced reasoning)
-- **Intent Classification**: GPT-5-mini classifier determines best model for each prompt
+- **Multi-Model Routing**: DeepSeek for narrow cost-optimized tasks, GPT-5-mini for interactive answers, and GPT-5-Pro for explicit deep reasoning
+- **Intent Classification**: GPT-5-mini classifier handles prompts that do not match deterministic routing rules
 - **React Frontend**: Modern chat UI with localStorage persistence
 - **FastAPI Backend**: High-performance Python backend with CORS support
 - **Azure Deployment**: Static Web App + App Service with CI/CD pipelines
@@ -30,9 +30,9 @@ Production-ready demo showcasing enterprise multi-model AI architecture with int
 ┌─────────────────────┐
 │ Azure AI Foundry    │
 ├─────────────────────┤
-│ • DeepSeek-V4       │ (simple/translation)
-│ • GPT-5-mini        │ (routing classifier)
-│ • GPT-5-Pro         │ (complex reasoning)
+│ • DeepSeek-V4       │ (translation/summary)
+│ • GPT-5-mini        │ (interactive/default)
+│ • GPT-5-Pro         │ (explicit deep reasoning)
 └─────────────────────┘
 ```
 
@@ -133,8 +133,8 @@ Request:
 
 Response:
 {
-  "modelUsed": "DeepSeek-V4-Flash",
-  "reason": "Simple query → DeepSeek",
+  "modelUsed": "gpt-5.4-mini",
+  "reason": "Rule match: short/simple query → GPT-5-mini",
   "answer": "Machine learning is..."
 }
 ```
@@ -144,11 +144,12 @@ Response:
 | Task Type | Model | Reason |
 |-----------|-------|--------|
 | Translation | DeepSeek-V4-Flash | Cost-optimized, fast |
-| Simple questions | DeepSeek-V4-Flash | Sufficient capability |
 | Summaries | DeepSeek-V4-Flash | No deep reasoning needed |
-| Complex reasoning | GPT-5-Pro | Advanced analysis required |
-| Math/Logic | GPT-5-Pro | Specialized reasoning |
-| Code generation | GPT-5-Pro | Detailed explanation needed |
+| Simple questions | GPT-5-mini | Fast interactive answer |
+| Live data | GPT-5-mini + retrieved context | Freshness-aware response |
+| Planning, analysis, math, and code | GPT-5-mini | Interactive response time |
+| Explicit deep/pro request | GPT-5-Pro | High-effort reasoning with longer latency |
+| Ambiguous or low-confidence classification | GPT-5-mini | Safe interactive default |
 
 ## 🔐 Security
 
