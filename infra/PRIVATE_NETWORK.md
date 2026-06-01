@@ -2,6 +2,8 @@
 
 The public Static Web App remains internet-accessible. The App Service also keeps
 public inbound access because browser-hosted JavaScript calls it directly.
+App Service WebSockets remain enabled for Voice Live connections from the
+public frontend.
 
 Private endpoints and DNS are configured for:
 

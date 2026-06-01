@@ -26,6 +26,7 @@ resource appService 'Microsoft.Web/sites@2023-01-01' = {
     httpsOnly: true
     siteConfig: {
       linuxFxVersion: 'PYTHON|3.12'
+      webSocketsEnabled: true
       appSettings: [
         {
           name: 'SCM_DO_BUILD_DURING_DEPLOYMENT'
