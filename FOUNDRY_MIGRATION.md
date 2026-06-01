@@ -33,8 +33,9 @@ The following deployments are active in `ms-tech-demo-resource-we`:
 | `text-embedding-3-small` | `text-embedding-3-small` | `1` | 10 |
 
 The previous Sweden Central account `mstech-demo-resource` is retained temporarily
-for rollback. Do not delete it until the West Europe path has been observed during
-the demo workload.
+for rollback with public network access disabled. A rollback requires repointing
+the Foundry private endpoint. Do not delete the account until the West Europe path
+has been observed during the demo workload.
 
 ## Identity and Networking
 
