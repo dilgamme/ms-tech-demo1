@@ -1,4 +1,4 @@
-param location string = 'eastus'
+param location string = 'westeurope'
 param resourceGroupName string = 'rg-ms-tech-demo1'
 param appServicePlanName string = 'plan-mstech-demo'
 param appServiceName string = 'mstech-demo-router-api'
