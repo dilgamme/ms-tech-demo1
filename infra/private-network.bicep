@@ -3,6 +3,7 @@ param webAppName string = 'mstech-demo-router-api'
 param searchServiceName string = 'mstech-demo-search'
 param storageAccountName string = 'mstechdemoragstorage'
 param foundryAccountName string = 'ms-tech-demo-resource-we'
+param routerExperimentAccountName string = 'ms-tech-demo1-router-se'
 
 resource webApp 'Microsoft.Web/sites@2023-12-01' existing = {
   name: webAppName
@@ -18,6 +19,10 @@ resource storageAccount 'Microsoft.Storage/storageAccounts@2023-05-01' existing 
 
 resource foundryAccount 'Microsoft.CognitiveServices/accounts@2024-10-01' existing = {
   name: foundryAccountName
+}
+
+resource routerExperimentAccount 'Microsoft.CognitiveServices/accounts@2024-10-01' existing = {
+  name: routerExperimentAccountName
 }
 
 resource vnet 'Microsoft.Network/virtualNetworks@2024-05-01' = {
@@ -186,6 +191,27 @@ resource foundryPrivateEndpoint 'Microsoft.Network/privateEndpoints@2024-05-01' 
   }
 }
 
+resource routerExperimentPrivateEndpoint 'Microsoft.Network/privateEndpoints@2024-05-01' = {
+  name: 'pe-ms-tech-demo1-router-se'
+  location: location
+  properties: {
+    subnet: {
+      id: privateEndpointSubnet.id
+    }
+    privateLinkServiceConnections: [
+      {
+        name: 'pec-ms-tech-demo1-router-se'
+        properties: {
+          privateLinkServiceId: routerExperimentAccount.id
+          groupIds: [
+            'account'
+          ]
+        }
+      }
+    ]
+  }
+}
+
 resource webAppPrivateDns 'Microsoft.Network/privateEndpoints/privateDnsZoneGroups@2024-05-01' = {
   parent: webAppPrivateEndpoint
   name: 'default'
@@ -258,6 +284,33 @@ resource foundryPrivateDns 'Microsoft.Network/privateEndpoints/privateDnsZoneGro
   }
 }
 
+resource routerExperimentPrivateDns 'Microsoft.Network/privateEndpoints/privateDnsZoneGroups@2024-05-01' = {
+  parent: routerExperimentPrivateEndpoint
+  name: 'default'
+  properties: {
+    privateDnsZoneConfigs: [
+      {
+        name: 'cognitiveservices'
+        properties: {
+          privateDnsZoneId: privateDnsZones[3].id
+        }
+      }
+      {
+        name: 'openai'
+        properties: {
+          privateDnsZoneId: privateDnsZones[4].id
+        }
+      }
+      {
+        name: 'services-ai'
+        properties: {
+          privateDnsZoneId: privateDnsZones[5].id
+        }
+      }
+    ]
+  }
+}
+
 resource searchStorageSharedPrivateLink 'Microsoft.Search/searchServices/sharedPrivateLinkResources@2025-05-01' = {
   parent: searchService
   name: 'spl-mstech-demo-ragstorage-blob'
@@ -274,3 +327,4 @@ output appServicePrivateEndpointId string = webAppPrivateEndpoint.id
 output searchPrivateEndpointId string = searchPrivateEndpoint.id
 output storagePrivateEndpointId string = storagePrivateEndpoint.id
 output foundryPrivateEndpointId string = foundryPrivateEndpoint.id
+output routerExperimentPrivateEndpointId string = routerExperimentPrivateEndpoint.id

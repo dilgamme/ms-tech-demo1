@@ -13,7 +13,7 @@ The application data path is aligned in West Europe:
 | Azure AI Search | `mstech-demo-search` | West Europe |
 | Virtual network | `vnet-mstech-demo` | West Europe |
 | Foundry AIServices account | `ms-tech-demo-resource-we` | West Europe |
-| Foundry project | `ms-tech-demo` | West Europe |
+| Foundry project | `ms-tech-demo1` | West Europe |
 
 The backend uses:
 
@@ -61,17 +61,26 @@ POST https://mstech-demo-search.search.windows.net/indexers/rag-1779444354799-in
 ## Managed Model Router Experiment
 
 The managed `model-router` catalog entry is available in Sweden Central but is not
-currently published in West Europe. Deployment attempts in the Sweden Central
-account were rejected by Azure with:
+currently published in West Europe. The separate Sweden Central experiment uses:
 
-```text
-Failed to validate policies for model-router sub-models of deployment 'model-router'.
-```
+| Resource | Name | Region |
+|----------|------|--------|
+| Foundry AIServices account | `ms-tech-demo1-router-se` | Sweden Central |
+| Foundry project | `ms-tech-demo1-router` | Sweden Central |
+| Model deployment | `model-router` | Sweden Central |
 
-This occurred with multiple router versions, both system-managed safety policies,
-and an explicit OpenAI-only model subset. The application therefore continues to
-use its deterministic routing rules while the managed router remains an optional
-future experiment.
+The `model-router` deployment uses version `2025-11-18`, `GlobalStandard` SKU,
+capacity `10`, and the `Microsoft.DefaultV2` policy. The private endpoint
+`pe-ms-tech-demo1-router-se` targets the experiment account and public network
+access is disabled.
+
+A direct authenticated Chat Completions request succeeded and routed a short prompt
+to `gpt-4o-mini`. The production application continues to use its deterministic
+routing rules until an explicit A/B integration is added.
+
+The earlier deployment attempts against the old Sweden Central rollback account
+`mstech-demo-resource` failed policy validation. Creating a clean experiment account
+resolved that account-specific issue.
 
 ## Validation
 
