@@ -71,7 +71,7 @@ Add these secrets:
 
 | Secret | Value |
 |--------|-------|
-| `AZURE_OPENAI_ENDPOINT` | https://mstech-demo-resource.cognitiveservices.azure.com/ |
+| `AZURE_OPENAI_ENDPOINT` | https://ms-tech-demo-resource-we.cognitiveservices.azure.com/ |
 | `AZURE_OPENAI_KEY` | Set rotated key directly on App Service |
 | `VITE_API_URL` | https://mstech-demo-router-api.azurewebsites.net |
 | `AzureAppService_PublishProfile_44751b3e1cc1412289a5ed70da06ca2f` | Created by Azure |

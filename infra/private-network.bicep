@@ -2,7 +2,7 @@ param location string = 'westeurope'
 param webAppName string = 'mstech-demo-router-api'
 param searchServiceName string = 'mstech-demo-search'
 param storageAccountName string = 'mstechdemoragstorage'
-param foundryAccountName string = 'mstech-demo-resource'
+param foundryAccountName string = 'ms-tech-demo-resource-we'
 
 resource webApp 'Microsoft.Web/sites@2023-12-01' existing = {
   name: webAppName

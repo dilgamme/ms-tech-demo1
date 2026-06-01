@@ -39,7 +39,7 @@ az webapp config appsettings set \
   --resource-group "$RESOURCE_GROUP" \
   --name "$APP_SERVICE_NAME" \
   --settings \
-    AZURE_OPENAI_ENDPOINT="https://mstech-demo-resource.cognitiveservices.azure.com/" \
+    AZURE_OPENAI_ENDPOINT="https://ms-tech-demo-resource-we.cognitiveservices.azure.com/" \
     USE_MANAGED_IDENTITY="true" \
     DEEPSEEK_MODEL="DeepSeek-V4-Flash" \
     ROUTER_MODEL="gpt-5.4-mini" \

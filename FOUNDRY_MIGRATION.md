@@ -1,168 +1,85 @@
-# Azure AI Foundry Migration to West Europe
+# Microsoft Foundry Migration to West Europe
 
-This guide documents the migration of Azure AI Foundry from Sweden Central to West Europe to reduce latency and align with other project resources.
+Migration completed on 2026-06-01.
 
-## 📋 Pre-Migration Checklist
+## Current Topology
 
-- [x] Infrastructure code updated (main.bicep now uses `westeurope`)
-- [x] Private network already configured for West Europe
-- [ ] Azure AI Foundry project created in West Europe region
-- [ ] Models deployed in new Foundry project:
-  - [ ] `DeepSeek-V4-Flash`
-  - [ ] `gpt-5.4-mini`
-  - [ ] `gpt-5-pro-reasoning`
-- [ ] API endpoints updated in backend configuration
-- [ ] Testing completed
+The application data path is aligned in West Europe:
 
-## 🔧 Steps to Complete Migration
+| Resource | Name | Region |
+|----------|------|--------|
+| App Service | `mstech-demo-router-api` | West Europe |
+| Storage account | `mstechdemoragstorage` | West Europe |
+| Azure AI Search | `mstech-demo-search` | West Europe |
+| Virtual network | `vnet-mstech-demo` | West Europe |
+| Foundry AIServices account | `ms-tech-demo-resource-we` | West Europe |
+| Foundry project | `ms-tech-demo` | West Europe |
 
-### Step 1: Create Azure AI Foundry Project in West Europe
+The backend uses:
 
-1. Go to [Azure Portal](https://portal.azure.com)
-2. Navigate to **Azure AI Foundry** → **Projects**
-3. Create a new project in **West Europe** region:
-   - **Project Name**: `ms-tech-demo` (or preferred name)
-   - **Resource Group**: `rg-ms-tech-demo1`
-   - **Region**: `West Europe`
-   - **Hub**: Create new or use existing
-   - **Storage Account**: Use `mstechdemoragstorage` (already in West Europe)
-   - **Key Vault**: Create new in West Europe
-
-### Step 2: Deploy Models in New Foundry Project
-
-Once the Foundry project is created:
-
-1. **Deploy DeepSeek-V4-Flash**
-   - In your Foundry project → **Models + Endpoints**
-   - Click **Deploy** → **Model**
-   - Select **DeepSeek-V4-Flash**
-   - Choose **Deployment name**: `DeepSeek-V4-Flash`
-   - Configure quota/resources as needed
-   - Deploy
-
-2. **Deploy GPT-5-mini**
-   - Click **Deploy** → **Model**
-   - Select **gpt-5.4-mini**
-   - Deployment name: `gpt-5-mini`
-   - Deploy
-
-3. **Deploy GPT-5-Pro (Reasoning)**
-   - Click **Deploy** → **Model**
-   - Select **gpt-5-pro-reasoning` or similar
-   - Deployment name: `gpt-5-pro-reasoning`
-   - Deploy
-
-### Step 3: Update Backend Configuration
-
-Once models are deployed, update your backend to use the new West Europe Foundry endpoint:
-
-1. Get the **API Endpoint** from your Foundry project:
-   - Project Settings → API Endpoints
-   - Copy the endpoint URL
-
-2. Update your App Service configuration:
-   ```bash
-   az webapp config appsettings set \
-     --resource-group rg-ms-tech-demo1 \
-     --name mstech-demo-router-api \
-     --settings FOUNDRY_ENDPOINT="<new-west-europe-endpoint>"
-   ```
-
-3. Or update via Azure Portal:
-   - App Service → Configuration → Application Settings
-   - Update `FOUNDRY_ENDPOINT` to new West Europe value
-
-### Step 4: Deploy Infrastructure
-
-Run the deployment:
-
-```bash
-az deployment group create \
-  --resource-group rg-ms-tech-demo1 \
-  --template-file infra/main.bicep \
-  --parameters location=westeurope
+```text
+AZURE_OPENAI_ENDPOINT=https://ms-tech-demo-resource-we.cognitiveservices.azure.com/
 ```
 
-Or use Azure Developer CLI:
+## Model Deployments
 
-```bash
-azd up --environment prod
+The following deployments are active in `ms-tech-demo-resource-we`:
+
+| Deployment | Model | Version | Capacity |
+|------------|-------|---------|----------|
+| `gpt-5.4-mini` | `gpt-5.4-mini` | `2026-03-17` | 500 |
+| `gpt-5-pro-reasoning` | `gpt-5-pro` | `2025-10-06` | 100 |
+| `DeepSeek-V4-Flash` | `DeepSeek-V4-Flash` | `2026-04-23` | 20 |
+| `text-embedding-3-small` | `text-embedding-3-small` | `1` | 10 |
+
+The previous Sweden Central account `mstech-demo-resource` is retained temporarily
+for rollback. Do not delete it until the West Europe path has been observed during
+the demo workload.
+
+## Identity and Networking
+
+- The App Service system-assigned managed identity has `Cognitive Services OpenAI User`,
+  `Cognitive Services User`, and `Foundry User` on `ms-tech-demo-resource-we`.
+- The private endpoint `pe-mstech-demo-foundry` targets `ms-tech-demo-resource-we`.
+- Foundry private DNS zones remain linked to `vnet-mstech-demo`.
+- Public network access is disabled on `ms-tech-demo-resource-we`.
+
+## Azure AI Search Indexer
+
+The RAG indexer `rag-1779444354799-indexer` previously ran every day. Its native
+schedule has been removed, so it now runs on demand only.
+
+Azure AI Search indexer schedules accept a maximum interval of one day. A native
+`P10D` schedule is rejected by the service. If automated indexing every 10 days is
+required later, use a private-network-compatible external trigger to invoke:
+
+```http
+POST https://mstech-demo-search.search.windows.net/indexers/rag-1779444354799-indexer/run?api-version=2025-09-01
 ```
 
-### Step 5: Test and Verify
+## Managed Model Router Experiment
 
-1. **Test Model Routing**
-   ```bash
-   curl -X POST https://mstech-demo-router-api.azurewebsites.net/api/chat \
-     -H "Content-Type: application/json" \
-     -d '{"messages": [{"role": "user", "content": "Hello"}]}'
-   ```
+The managed `model-router` catalog entry is available in Sweden Central but is not
+currently published in West Europe. Deployment attempts in the Sweden Central
+account were rejected by Azure with:
 
-2. **Verify Latency**
-   - Check response times from your frontend
-   - Monitor Application Insights metrics
-   - Confirm reduced latency vs previous region
+```text
+Failed to validate policies for model-router sub-models of deployment 'model-router'.
+```
 
-3. **Run End-to-End Tests**
-   ```bash
-   npm test --workspace=frontend
-   pytest backend/tests
-   ```
+This occurred with multiple router versions, both system-managed safety policies,
+and an explicit OpenAI-only model subset. The application therefore continues to
+use its deterministic routing rules while the managed router remains an optional
+future experiment.
 
-### Step 6: Cleanup (Optional)
+## Validation
 
-Once migration is confirmed successful:
+The migrated private path was verified after public access was disabled:
 
-1. Delete old Sweden Central Foundry project (if applicable)
-2. Remove any unused resources from previous region
-3. Update documentation
+- Backend health endpoint returned `status: ok`.
+- `gpt-5.4-mini` handled a short interactive request.
+- `DeepSeek-V4-Flash` handled a summary request.
+- RAG retrieved indexed sources and generated an answer using `gpt-5.4-mini`.
 
-## 📊 Regional Consistency
-
-After migration, all resources will be in **West Europe**:
-
-| Resource | Region | Status |
-|----------|--------|--------|
-| App Service | West Europe | ✅ |
-| Storage Account (RAG) | West Europe | ✅ |
-| Azure AI Search | West Europe | ✅ |
-| Virtual Network | West Europe | ✅ |
-| Private Endpoints | West Europe | ✅ |
-| **Azure AI Foundry** | **West Europe** | ⏳ *In Progress* |
-
-## 🔐 Security Notes
-
-- Private endpoints are configured in `infra/private-network.bicep`
-- Foundry account will be accessible via private endpoint: `pe-mstech-demo-foundry`
-- Managed identity access is preferred over API keys
-- All resources remain within Azure private network
-
-## 📝 Configuration Files Updated
-
-- `infra/main.bicep`: Changed default location from `eastus` to `westeurope`
-- `.azure/infrastructure-plan.json`: Already configured for West Europe
-- `infra/private-network.bicep`: Already configured for West Europe
-
-## 🚨 Troubleshooting
-
-### Models not deploying?
-- Ensure you have sufficient quota in West Europe region
-- Check Foundry project has correct permissions
-- Verify model availability in target region
-
-### High latency still?
-- Check Application Insights → Performance metrics
-- Verify frontend is also in West Europe (Static Web App location)
-- Review network path in private endpoints
-
-### Connection failures?
-- Verify Foundry private endpoint is properly configured
-- Check VNet integration on App Service
-- Review NSG and firewall rules
-
-## 📞 Support
-
-For issues during migration, check:
-- [Azure AI Foundry Documentation](https://learn.microsoft.com/en-us/azure/ai-foundry/)
-- Application Insights logs
-- App Service diagnostic logs
+`gpt-5-pro-reasoning` remains available but can exceed the demo App Service request
+window. Keep it restricted to explicit pro requests.
