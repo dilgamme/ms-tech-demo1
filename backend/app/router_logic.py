@@ -110,6 +110,7 @@ CLASSIFIER_TIMEOUT_SECONDS = 10
 FAST_MODEL_TIMEOUT_SECONDS = 15
 MINI_ANSWER_TIMEOUT_SECONDS = 40
 MINI_RETRY_TIMEOUT_SECONDS = 20
+FOUNDRY_ROUTER_TIMEOUT_SECONDS = 30
 REASONING_TIMEOUT_SECONDS = 90
 
 class ModelRouter:
@@ -123,6 +124,15 @@ class ModelRouter:
         self.deepseek_model = settings.DEEPSEEK_MODEL
         self.router_model = settings.ROUTER_MODEL
         self.reasoning_model = settings.REASONING_MODEL
+        self.foundry_router_model = settings.FOUNDRY_ROUTER_MODEL
+        self.foundry_router_client = None
+        if settings.FOUNDRY_ROUTER_ENDPOINT:
+            foundry_router_endpoint = settings.FOUNDRY_ROUTER_ENDPOINT.rstrip("/")
+            self.foundry_router_client = OpenAI(
+                api_key=get_openai_api_key(),
+                base_url=f"{foundry_router_endpoint}/openai/v1/",
+                max_retries=0
+            )
 
     async def route_prompt(self, prompt: str, messages: list = None) -> RoutingResponse:
         """
@@ -170,10 +180,27 @@ class ModelRouter:
             if route == "router":
                 if intent_classification.get("intent") == "realtime":
                     response = await self._call_router_model(prompt, messages)
+                    model_used = self.router_model
                 else:
-                    response = await self._call_mini_answer_model(prompt, messages)
+                    try:
+                        response, model_used = await self._call_foundry_router_model(prompt, messages)
+                        intent_classification["reason"] = (
+                            f"{intent_classification['reason']} | Foundry model-router selected {model_used}"
+                        )
+                    except Exception as foundry_router_error:
+                        logger.warning(
+                            "Foundry model-router fallback to mini after %s: %s",
+                            type(foundry_router_error).__name__,
+                            foundry_router_error
+                        )
+                        response = await self._call_mini_answer_model(prompt, messages)
+                        model_used = self.router_model
+                        intent_classification["reason"] = (
+                            f"{intent_classification['reason']} | Foundry model-router unavailable/slow, "
+                            "fallback → GPT-5-mini"
+                        )
                 return RoutingResponse(
-                    modelUsed=self.router_model,
+                    modelUsed=model_used,
                     reason=intent_classification["reason"],
                     answer=response
                 )
@@ -250,7 +277,7 @@ class ModelRouter:
         if self._contains_any(text, ARCHITECTURE_PLANNING_PATTERNS):
             return {
                 "route": "router",
-                "reason": "Rule match: interactive architecture/planning → GPT-5-mini",
+                "reason": "Rule match: interactive architecture/planning → Foundry model-router",
                 "intent": "planning",
                 "confidence": 0.9
             }
@@ -258,7 +285,7 @@ class ModelRouter:
         if self._contains_any(text, REASONING_PATTERNS):
             return {
                 "route": "router",
-                "reason": "Rule match: interactive analysis → GPT-5-mini",
+                "reason": "Rule match: interactive analysis → Foundry model-router",
                 "intent": "reasoning",
                 "confidence": 0.9
             }
@@ -274,7 +301,7 @@ class ModelRouter:
         if word_count <= 18 and (text.endswith("?") or self._contains_any(text, SIMPLE_PATTERNS)):
             return {
                 "route": "router",
-                "reason": "Rule match: short/simple query → GPT-5-mini",
+                "reason": "Rule match: short/simple query → Foundry model-router",
                 "intent": "simple",
                 "confidence": 0.85
             }
@@ -347,22 +374,22 @@ Return only valid JSON."""
             reason_map = {
                 "translation": "Classifier: translation → DeepSeek",
                 "summary": "Classifier: summary → DeepSeek",
-                "simple": "Classifier: simple query → GPT-5-mini",
+                "simple": "Classifier: simple query → Foundry model-router",
                 "realtime": "Classifier: real-time/current data → GPT-5-mini",
-                "analysis": "Classifier: interactive analysis → GPT-5-mini",
-                "code": "Classifier: interactive code task → GPT-5-mini",
-                "math": "Classifier: interactive math/logic → GPT-5-mini",
-                "planning": "Classifier: interactive planning → GPT-5-mini",
-                "reasoning": "Classifier: interactive reasoning → GPT-5-mini"
+                "analysis": "Classifier: interactive analysis → Foundry model-router",
+                "code": "Classifier: interactive code task → Foundry model-router",
+                "math": "Classifier: interactive math/logic → Foundry model-router",
+                "planning": "Classifier: interactive planning → Foundry model-router",
+                "reasoning": "Classifier: interactive reasoning → Foundry model-router"
             }
             
             reason = reason_map.get(intent)
             if confidence < 0.65:
-                reason = "Classifier: low-confidence safe default → GPT-5-mini"
+                reason = "Classifier: low-confidence safe default → Foundry model-router"
             if not reason:
                 route_labels = {
                     "deepseek": "cost-optimized route → DeepSeek",
-                    "router": "freshness-sensitive route → GPT-5-mini",
+                    "router": "general interactive route → Foundry model-router",
                     "reasoning": "explicit deep reasoning → GPT-5-Pro"
                 }
                 reason = f"Classifier: {route_labels[selected_route]}"
@@ -476,6 +503,33 @@ Return only valid JSON."""
         except Exception as e:
             logger.error(f"Router model error: {e}")
             raise
+
+    async def _call_foundry_router_model(self, prompt: str, messages: list = None) -> tuple[str, str]:
+        """Call the managed Foundry model-router for general interactive prompts."""
+
+        if not self.foundry_router_client:
+            raise ValueError("FOUNDRY_ROUTER_ENDPOINT is not configured")
+
+        system_message = {
+            "role": "system",
+            "content": (
+                "Answer clearly and practically. Use concise Markdown headings and bullets when useful. "
+                "Keep the answer demo-friendly and avoid long introductions."
+            )
+        }
+        message_list = [system_message, *self._prepare_messages(messages)]
+        message_list.append({"role": "user", "content": prompt})
+
+        response = await self._run_blocking(
+            FOUNDRY_ROUTER_TIMEOUT_SECONDS,
+            self.foundry_router_client.chat.completions.create,
+            model=self.foundry_router_model,
+            messages=message_list,
+            max_completion_tokens=900,
+            timeout=FOUNDRY_ROUTER_TIMEOUT_SECONDS
+        )
+        selected_model = response.model or self.foundry_router_model
+        return response.choices[0].message.content or "", selected_model
 
     async def _call_reasoning_model(self, prompt: str, messages: list = None) -> str:
         """Call GPT-5-Pro reasoning model through the Responses API."""

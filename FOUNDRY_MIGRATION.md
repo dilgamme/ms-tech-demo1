@@ -75,8 +75,10 @@ capacity `10`, and the `Microsoft.DefaultV2` policy. The private endpoint
 access is disabled.
 
 A direct authenticated Chat Completions request succeeded and routed a short prompt
-to `gpt-4o-mini`. The production application continues to use its deterministic
-routing rules until an explicit A/B integration is added.
+to `gpt-4o-mini`. The production application uses a hybrid policy: deterministic
+rules retain translation, explicit Pro, RAG, and realtime handling, while general
+interactive prompts are sent to the managed router with a West Europe
+`gpt-5.4-mini` fallback.
 
 The earlier deployment attempts against the old Sweden Central rollback account
 `mstech-demo-resource` failed policy validation. Creating a clean experiment account

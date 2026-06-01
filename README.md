@@ -4,7 +4,7 @@ Production-ready demo showcasing enterprise multi-model AI architecture with int
 
 ## 🎯 Features
 
-- **Multi-Model Routing**: DeepSeek for narrow cost-optimized tasks, GPT-5-mini for interactive answers, and GPT-5-Pro for explicit deep reasoning
+- **Hybrid Multi-Model Routing**: Deterministic special-case routes plus the managed Foundry model-router for general interactive prompts
 - **Intent Classification**: GPT-5-mini classifier handles prompts that do not match deterministic routing rules
 - **React Frontend**: Modern chat UI with localStorage persistence
 - **FastAPI Backend**: High-performance Python backend with CORS support
@@ -31,8 +31,9 @@ Production-ready demo showcasing enterprise multi-model AI architecture with int
 │ Azure AI Foundry    │
 ├─────────────────────┤
 │ • DeepSeek-V4       │ (translation/summary)
-│ • GPT-5-mini        │ (interactive/default)
+│ • GPT-5-mini        │ (realtime/fallback)
 │ • GPT-5-Pro         │ (explicit deep reasoning)
+│ • model-router      │ (general interactive prompts)
 └─────────────────────┘
 ```
 
@@ -43,6 +44,7 @@ Production-ready demo showcasing enterprise multi-model AI architecture with int
   - `DeepSeek-V4-Flash`
   - `gpt-5.4-mini`
   - `gpt-5-pro-reasoning`
+  - `model-router`
 - Azure OpenAI endpoint and either managed identity access or an API key for local development
 - GitHub account
 - Node.js 18+ and Python 3.12+
@@ -133,8 +135,8 @@ Request:
 
 Response:
 {
-  "modelUsed": "gpt-5.4-mini",
-  "reason": "Rule match: short/simple query → GPT-5-mini",
+  "modelUsed": "gpt-4o-mini-2024-07-18",
+  "reason": "Rule match: short/simple query → Foundry model-router | Foundry model-router selected gpt-4o-mini-2024-07-18",
   "answer": "Machine learning is..."
 }
 ```
@@ -145,11 +147,11 @@ Response:
 |-----------|-------|--------|
 | Translation | DeepSeek-V4-Flash | Cost-optimized, fast |
 | Summaries | DeepSeek-V4-Flash | No deep reasoning needed |
-| Simple questions | GPT-5-mini | Fast interactive answer |
+| Simple questions | Foundry model-router | Managed model selection |
 | Live data | GPT-5-mini + retrieved context | Freshness-aware response |
-| Planning, analysis, math, and code | GPT-5-mini | Interactive response time |
+| Planning, analysis, math, and code | Foundry model-router | Managed model selection |
 | Explicit deep/pro request | GPT-5-Pro | High-effort reasoning with longer latency |
-| Ambiguous or low-confidence classification | GPT-5-mini | Safe interactive default |
+| Ambiguous or low-confidence classification | Foundry model-router | Managed model selection with GPT-5-mini fallback |
 
 ## 🔐 Security
 
@@ -170,6 +172,8 @@ USE_MANAGED_IDENTITY=false
 DEEPSEEK_MODEL=DeepSeek-V4-Flash
 ROUTER_MODEL=gpt-5.4-mini
 REASONING_MODEL=gpt-5-pro-reasoning
+FOUNDRY_ROUTER_ENDPOINT=https://your-router-resource.cognitiveservices.azure.com/
+FOUNDRY_ROUTER_MODEL=model-router
 FRONTEND_URL=https://orange-hill-0db554803.7.azurestaticapps.net
 ```
 
