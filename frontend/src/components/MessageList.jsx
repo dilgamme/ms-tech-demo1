@@ -81,6 +81,10 @@ const SourceList = ({ sources }) => {
   )
 }
 
+const cleanAssistantMarkdown = (content = '') => (
+  content.replace(/\n\s*(?:\*\*|__|```|`)\s*$/, '')
+)
+
 const AssistantMessage = ({ content }) => (
   <ReactMarkdown
     className="assistant-markdown"
@@ -89,7 +93,7 @@ const AssistantMessage = ({ content }) => (
       a: ({ node, ...props }) => <a {...props} target="_blank" rel="noreferrer" />,
     }}
   >
-    {content}
+    {cleanAssistantMarkdown(content)}
   </ReactMarkdown>
 )
 

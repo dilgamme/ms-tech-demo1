@@ -386,7 +386,7 @@ Return ONLY valid JSON."""
     ) -> str:
         """Call GPT-5-mini as a fast fallback/general answer model."""
 
-        max_tokens = 300 if compact else 450
+        max_tokens = 400 if compact else 900
         timeout_seconds = FAST_RETRY_TIMEOUT_SECONDS if compact else FAST_MODEL_TIMEOUT_SECONDS
         system_message = {
             "role": "system",
