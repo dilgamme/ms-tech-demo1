@@ -101,7 +101,8 @@ MAX_HISTORY_MESSAGES = 6
 MAX_MESSAGE_CHARS = 1200
 CLASSIFIER_TIMEOUT_SECONDS = 10
 FAST_MODEL_TIMEOUT_SECONDS = 15
-FAST_RETRY_TIMEOUT_SECONDS = 10
+MINI_ANSWER_TIMEOUT_SECONDS = 40
+MINI_RETRY_TIMEOUT_SECONDS = 20
 REASONING_TIMEOUT_SECONDS = 90
 
 class ModelRouter:
@@ -387,7 +388,7 @@ Return ONLY valid JSON."""
         """Call GPT-5-mini as a fast fallback/general answer model."""
 
         max_tokens = 400 if compact else 900
-        timeout_seconds = FAST_RETRY_TIMEOUT_SECONDS if compact else FAST_MODEL_TIMEOUT_SECONDS
+        timeout_seconds = MINI_RETRY_TIMEOUT_SECONDS if compact else MINI_ANSWER_TIMEOUT_SECONDS
         system_message = {
             "role": "system",
             "content": (
