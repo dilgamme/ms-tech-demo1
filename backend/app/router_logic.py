@@ -102,14 +102,15 @@ MAX_MESSAGE_CHARS = 1200
 CLASSIFIER_TIMEOUT_SECONDS = 10
 FAST_MODEL_TIMEOUT_SECONDS = 15
 FAST_RETRY_TIMEOUT_SECONDS = 10
-REASONING_TIMEOUT_SECONDS = 25
+REASONING_TIMEOUT_SECONDS = 90
 
 class ModelRouter:
     def __init__(self):
         endpoint = settings.AZURE_OPENAI_ENDPOINT.rstrip("/")
         self.client = OpenAI(
             api_key=get_openai_api_key(),
-            base_url=f"{endpoint}/openai/v1/"
+            base_url=f"{endpoint}/openai/v1/",
+            max_retries=0
         )
         self.deepseek_model = settings.DEEPSEEK_MODEL
         self.router_model = settings.ROUTER_MODEL
@@ -146,8 +147,12 @@ class ModelRouter:
                         reason=intent_classification["reason"],
                         answer=response
                     )
-                except (asyncio.TimeoutError, Exception) as reasoning_error:
-                    logger.warning(f"Reasoning route fallback to mini: {reasoning_error}")
+                except Exception as reasoning_error:
+                    logger.warning(
+                        "Reasoning route fallback to mini after %s: %s",
+                        type(reasoning_error).__name__,
+                        reasoning_error
+                    )
                     response = await self._call_mini_answer_model(prompt, messages)
                     return RoutingResponse(
                         modelUsed=self.router_model,
@@ -210,14 +215,6 @@ class ModelRouter:
         text = prompt.strip().lower()
         word_count = len(text.split())
 
-        if self._contains_any(text, REALTIME_PATTERNS):
-            return {
-                "route": "router",
-                "reason": "Rule match: real-time/current data → GPT-5-mini",
-                "intent": "realtime",
-                "confidence": 0.9
-            }
-
         if self._contains_any(text, TRANSLATION_PATTERNS):
             return {
                 "route": "deepseek",
@@ -236,10 +233,10 @@ class ModelRouter:
 
         if self._contains_any(text, ARCHITECTURE_PLANNING_PATTERNS):
             return {
-                "route": "router",
-                "reason": "Rule match: architecture/planning → GPT-5-mini",
-                "intent": "simple",
-                "confidence": 0.85
+                "route": "reasoning",
+                "reason": "Rule match: architecture/planning → GPT-5-Pro",
+                "intent": "planning",
+                "confidence": 0.9
             }
 
         if self._contains_any(text, REASONING_PATTERNS):
@@ -247,6 +244,14 @@ class ModelRouter:
                 "route": "reasoning",
                 "reason": "Rule match: complex reasoning → GPT-5-Pro",
                 "intent": "reasoning",
+                "confidence": 0.9
+            }
+
+        if self._contains_any(text, REALTIME_PATTERNS):
+            return {
+                "route": "router",
+                "reason": "Rule match: real-time/current data → GPT-5-mini",
+                "intent": "realtime",
                 "confidence": 0.9
             }
 
@@ -455,10 +460,14 @@ Return ONLY valid JSON."""
         
         try:
             response = await self._run_blocking(
-                REASONING_TIMEOUT_SECONDS,
+                REASONING_TIMEOUT_SECONDS + 5,
                 self.client.responses.create,
                 model=self.reasoning_model,
                 input=message_list,
+                instructions=(
+                    "Give a clear, practical answer. Use concise Markdown headings, bullets, and code blocks "
+                    "when they improve readability. Avoid long introductions and keep the answer demo-friendly."
+                ),
                 max_output_tokens=4000,
                 timeout=REASONING_TIMEOUT_SECONDS
             )
@@ -483,7 +492,7 @@ Return ONLY valid JSON."""
             return json.loads(match.group(0))
 
     def _contains_any(self, text: str, patterns: tuple[str, ...]) -> bool:
-        return any(pattern in text for pattern in patterns)
+        return any(re.search(rf"(?<!\w){re.escape(pattern)}(?!\w)", text) for pattern in patterns)
 
     def _prepare_messages(self, messages: list = None) -> list:
         prepared = []

@@ -22,6 +22,77 @@ body {
   @apply border border-slate-800 bg-slate-900 text-slate-100 shadow-black/20;
 }
 
+.assistant-markdown {
+  @apply leading-7;
+}
+
+.assistant-markdown > :first-child {
+  @apply mt-0;
+}
+
+.assistant-markdown > :last-child {
+  @apply mb-0;
+}
+
+.assistant-markdown p {
+  @apply my-3;
+}
+
+.assistant-markdown h1,
+.assistant-markdown h2,
+.assistant-markdown h3 {
+  @apply mb-2 mt-5 font-semibold text-white;
+}
+
+.assistant-markdown h1 {
+  @apply text-xl;
+}
+
+.assistant-markdown h2 {
+  @apply text-lg;
+}
+
+.assistant-markdown h3 {
+  @apply text-base;
+}
+
+.assistant-markdown ul {
+  @apply my-3 list-disc space-y-1 pl-5;
+}
+
+.assistant-markdown ol {
+  @apply my-3 list-decimal space-y-1 pl-5;
+}
+
+.assistant-markdown a {
+  @apply text-sky-300 underline decoration-sky-500/50 underline-offset-2 hover:text-sky-200;
+}
+
+.assistant-markdown blockquote {
+  @apply my-3 border-l-2 border-slate-600 pl-3 text-slate-300;
+}
+
+.assistant-markdown code {
+  @apply rounded bg-slate-950 px-1.5 py-0.5 font-mono text-[0.9em] text-sky-200;
+}
+
+.assistant-markdown pre {
+  @apply my-3 overflow-x-auto rounded-lg border border-slate-800 bg-slate-950 p-3;
+}
+
+.assistant-markdown pre code {
+  @apply bg-transparent p-0 text-sm text-slate-200;
+}
+
+.assistant-markdown table {
+  @apply my-3 w-full border-collapse text-left text-sm;
+}
+
+.assistant-markdown th,
+.assistant-markdown td {
+  @apply border border-slate-700 px-3 py-2;
+}
+
 .sender-icon {
   @apply mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full border shadow-lg;
 }

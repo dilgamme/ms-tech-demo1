@@ -1,4 +1,6 @@
 import { useEffect, useRef } from 'react'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import { ModelIndicator } from './ModelIndicator'
 
 export const LoadingDots = () => (
@@ -79,6 +81,18 @@ const SourceList = ({ sources }) => {
   )
 }
 
+const AssistantMessage = ({ content }) => (
+  <ReactMarkdown
+    className="assistant-markdown"
+    remarkPlugins={[remarkGfm]}
+    components={{
+      a: ({ node, ...props }) => <a {...props} target="_blank" rel="noreferrer" />,
+    }}
+  >
+    {content}
+  </ReactMarkdown>
+)
+
 export const MessageList = ({ messages, isLoading, onSuggestionSelect }) => {
   const bottomRef = useRef(null)
 
@@ -121,7 +135,9 @@ export const MessageList = ({ messages, isLoading, onSuggestionSelect }) => {
               <div key={idx} className={`flex items-start gap-3 ${isUser ? 'justify-end' : 'justify-start'}`}>
                 {!isUser && <SenderIcon role={msg.role} />}
                 <article className={`message-bubble ${isUser ? 'message-user' : 'message-assistant'}`}>
-                  <div className="whitespace-pre-wrap leading-7">{msg.content}</div>
+                  {isUser
+                    ? <div className="whitespace-pre-wrap leading-7">{msg.content}</div>
+                    : <AssistantMessage content={msg.content} />}
                   {msg.isStreaming && (
                     <span className="live-cursor" aria-label="Streaming response" />
                   )}
