@@ -169,6 +169,7 @@ def _fetch_weather(prompt: str) -> str:
     forecast = _get_json(forecast_url)
     current = forecast.get("current") or {}
     units = forecast.get("current_units") or {}
+    source_timezone = forecast.get("timezone", "source local timezone")
     code = current.get("weather_code")
     condition = WEATHER_CODES.get(code, f"weather code {code}") if code is not None else "unknown"
     name_parts = [place.get("name"), place.get("admin1"), place.get("country")]
@@ -177,7 +178,7 @@ def _fetch_weather(prompt: str) -> str:
     return (
         "Weather source: Open-Meteo.\n"
         f"Location: {display_name}.\n"
-        f"Observation time: {current.get('time', 'unknown')}.\n"
+        f"Observation time ({source_timezone}): {current.get('time', 'unknown')}.\n"
         f"Temperature: {current.get('temperature_2m')} {units.get('temperature_2m', '')}.\n"
         f"Humidity: {current.get('relative_humidity_2m')} {units.get('relative_humidity_2m', '')}.\n"
         f"Wind: {current.get('wind_speed_10m')} {units.get('wind_speed_10m', '')}.\n"

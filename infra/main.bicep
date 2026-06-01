@@ -26,6 +26,7 @@ resource appService 'Microsoft.Web/sites@2023-01-01' = {
     httpsOnly: true
     siteConfig: {
       alwaysOn: true
+      healthCheckPath: '/health'
       linuxFxVersion: 'PYTHON|3.12'
       webSocketsEnabled: true
       appSettings: [
