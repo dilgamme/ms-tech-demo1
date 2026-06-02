@@ -174,6 +174,8 @@ ROUTER_MODEL=gpt-5.4-mini
 REASONING_MODEL=gpt-5-pro-reasoning
 FOUNDRY_ROUTER_ENDPOINT=https://your-router-resource.cognitiveservices.azure.com/
 FOUNDRY_ROUTER_MODEL=model-router
+AUTH_CLIENT_ID=ead1d8be-064b-4e75-af9b-66ab0c28a954
+AUTH_REQUIRED=false
 FOUNDRY_PROJECT_ENDPOINT=https://your-foundry-resource.services.ai.azure.com/api/projects/your-project
 MEMORY_STORE_NAME=ms-tech-demo-memory
 MEMORY_STORE_CHAT_MODEL=gpt-5.4-mini
@@ -186,6 +188,8 @@ FRONTEND_URL=https://orange-hill-0db554803.7.azurestaticapps.net
 **Frontend (.env.local):**
 ```
 VITE_API_URL=https://mstech-demo-router-api.azurewebsites.net
+VITE_ENTRA_CLIENT_ID=ead1d8be-064b-4e75-af9b-66ab0c28a954
+VITE_ENTRA_API_SCOPE=api://ead1d8be-064b-4e75-af9b-66ab0c28a954/access_as_user
 ```
 
 ## 🗂️ Project Structure

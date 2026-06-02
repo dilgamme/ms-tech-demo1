@@ -1,9 +1,10 @@
-from fastapi import APIRouter, BackgroundTasks, Header, HTTPException, Query
+from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, Query
 import logging
 
 from app.memory_service import get_memory_service
 from app.models import RoutingRequest, RoutingResponse, ErrorResponse
 from app.router_logic import get_router
+from app.user_auth import UserIdentity, get_optional_user_identity
 
 router = APIRouter(prefix="/api", tags=["routing"])
 logger = logging.getLogger(__name__)
@@ -13,6 +14,7 @@ async def route_prompt(
     request: RoutingRequest,
     background_tasks: BackgroundTasks,
     x_memory_user_id: str | None = Header(default=None),
+    identity: UserIdentity | None = Depends(get_optional_user_identity),
 ) -> RoutingResponse:
     """
     Route a prompt to the appropriate model based on intent classification.
@@ -34,7 +36,8 @@ async def route_prompt(
                 })
 
         memory_service = get_memory_service()
-        memory_context = await memory_service.search_context(x_memory_user_id, request.prompt)
+        memory_scope = identity.memory_scope if identity else x_memory_user_id
+        memory_context = await memory_service.search_context(memory_scope, request.prompt)
         if memory_context:
             messages.insert(0, {"role": "system", "content": memory_context})
         
@@ -42,7 +45,7 @@ async def route_prompt(
         result = await router_instance.route_prompt(request.prompt, messages)
         background_tasks.add_task(
             memory_service.update_from_turn,
-            x_memory_user_id,
+            memory_scope,
             request.prompt,
             result.answer,
         )
@@ -64,10 +67,14 @@ async def memory_status() -> dict:
 
 
 @router.post("/memory/reset")
-async def reset_memory(x_memory_user_id: str | None = Header(default=None)) -> dict:
-    if not x_memory_user_id:
+async def reset_memory(
+    x_memory_user_id: str | None = Header(default=None),
+    identity: UserIdentity | None = Depends(get_optional_user_identity),
+) -> dict:
+    memory_scope = identity.memory_scope if identity else x_memory_user_id
+    if not memory_scope:
         raise HTTPException(status_code=400, detail="X-Memory-User-ID header is required")
-    deleted = await get_memory_service().delete_scope(x_memory_user_id)
+    deleted = await get_memory_service().delete_scope(memory_scope)
     return {"deleted": deleted}
 
 
@@ -75,8 +82,10 @@ async def reset_memory(x_memory_user_id: str | None = Header(default=None)) -> d
 async def search_memory(
     query: str | None = Query(default=None, max_length=1000),
     x_memory_user_id: str | None = Header(default=None),
+    identity: UserIdentity | None = Depends(get_optional_user_identity),
 ) -> dict:
-    if not x_memory_user_id:
+    memory_scope = identity.memory_scope if identity else x_memory_user_id
+    if not memory_scope:
         raise HTTPException(status_code=400, detail="X-Memory-User-ID header is required")
-    memories = await get_memory_service().search_memories(x_memory_user_id, query)
+    memories = await get_memory_service().search_memories(memory_scope, query)
     return {"memories": memories}

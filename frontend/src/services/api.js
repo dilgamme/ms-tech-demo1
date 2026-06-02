@@ -1,4 +1,5 @@
 import axios from 'axios'
+import { getApiAccessToken } from '../auth'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
 const MEMORY_USER_KEY = 'mstech_memory_user_id'
@@ -19,7 +20,11 @@ const api = axios.create({
   },
 })
 
-api.interceptors.request.use((config) => {
+api.interceptors.request.use(async (config) => {
+  const accessToken = await getApiAccessToken()
+  if (accessToken) {
+    config.headers.Authorization = `Bearer ${accessToken}`
+  }
   config.headers['X-Memory-User-ID'] = getMemoryUserId()
   return config
 })

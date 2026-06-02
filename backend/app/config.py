@@ -21,6 +21,10 @@ class Settings(BaseSettings):
     MEMORY_STORE_EMBEDDING_MODEL: str = "text-embedding-3-small"
     MEMORY_STORE_API_VERSION: str = "2025-11-15-preview"
     MEMORY_STORE_MAX_MEMORIES: int = 5
+
+    # Microsoft identity platform authentication
+    AUTH_CLIENT_ID: Optional[str] = None
+    AUTH_REQUIRED: bool = False
     
     # Frontend URL for CORS
     FRONTEND_URL: Optional[str] = None

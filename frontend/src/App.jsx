@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
+import { useIsAuthenticated, useMsal } from '@azure/msal-react'
+import { loginRequest, msalEnabled } from './auth'
 import { ragPrompt, routePrompt } from './services/api'
 import { createPcmPlayer, createPcmRecorder, createVoiceLiveSocket } from './services/voiceLive'
 import { MessageList } from './components/MessageList'
@@ -27,6 +29,8 @@ const extractUsageMetrics = (payload) => {
 }
 
 function App() {
+  const { instance, accounts } = useMsal()
+  const isAuthenticated = useIsAuthenticated()
   const [messages, setMessages] = useState([])
   const [isLoading, setIsLoading] = useState(false)
   const [isRagMode, setIsRagMode] = useState(false)
@@ -137,6 +141,18 @@ function App() {
       setMessages([])
       localStorage.removeItem(STORAGE_KEY)
     }
+  }
+
+  const handleMicrosoftSignIn = async () => {
+    const result = await instance.loginPopup(loginRequest)
+    instance.setActiveAccount(result.account)
+  }
+
+  const handleMicrosoftSignOut = async () => {
+    await instance.logoutPopup({
+      account: instance.getActiveAccount() || accounts[0],
+      postLogoutRedirectUri: window.location.origin,
+    })
   }
 
   const startVoiceSession = async () => {
@@ -498,14 +514,25 @@ function App() {
             <h1 className="text-base font-semibold tracking-normal sm:text-lg">MS Tech Demo</h1>
             <p className="text-xs text-slate-400 sm:text-sm">Multi-model AI routing on Azure</p>
           </div>
-          <button
-            type="button"
-            onClick={handleNewChat}
-            disabled={isLoading}
-            className="inline-flex h-9 items-center justify-center rounded-lg border border-slate-700 bg-slate-900 px-3 text-sm font-medium text-slate-200 transition hover:border-slate-600 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            New chat
-          </button>
+          <div className="flex items-center gap-2">
+            {msalEnabled && (
+              <button
+                type="button"
+                onClick={isAuthenticated ? handleMicrosoftSignOut : handleMicrosoftSignIn}
+                className="inline-flex h-9 items-center justify-center rounded-lg border border-sky-700 bg-sky-950 px-3 text-sm font-medium text-sky-100 transition hover:border-sky-500 hover:bg-sky-900"
+              >
+                {isAuthenticated ? `Sign out ${accounts[0]?.name || ''}` : 'Sign in with Microsoft'}
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={handleNewChat}
+              disabled={isLoading}
+              className="inline-flex h-9 items-center justify-center rounded-lg border border-slate-700 bg-slate-900 px-3 text-sm font-medium text-slate-200 transition hover:border-slate-600 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              New chat
+            </button>
+          </div>
         </div>
       </header>
 
