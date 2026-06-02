@@ -6,10 +6,12 @@ Production-ready demo showcasing enterprise multi-model AI architecture with int
 
 - **Hybrid Multi-Model Routing**: Deterministic special-case routes plus the managed Foundry model-router for general interactive prompts
 - **Intent Classification**: GPT-5-mini classifier handles prompts that do not match deterministic routing rules
-- **React Frontend**: Modern chat UI with localStorage persistence
+- **React Frontend**: Modern chat UI with Microsoft Foundry conversation history
 - **FastAPI Backend**: High-performance Python backend with CORS support
 - **Azure Deployment**: Static Web App + App Service with CI/CD pipelines
-- **Future-Ready**: Architecture designed for microphone, vision, memory, and RAG integrations
+- **Voice Live and RAG**: Microphone conversations and private Azure AI Search grounding
+- **Microsoft Account Sign-In**: Optional personal Microsoft and organizational Entra login
+- **Living Architecture Documentation**: Full deployed flow documented in [`SOLUTION_ARCHITECTURE.md`](SOLUTION_ARCHITECTURE.md)
 
 ## 🏗️ Architecture
 
@@ -25,7 +27,7 @@ Production-ready demo showcasing enterprise multi-model AI architecture with int
 │  App Service        │
 │  Python 3.12        │
 └──────────┬──────────┘
-           │ Azure OpenAI
+           │ Managed identity + private networking
            ▼
 ┌─────────────────────┐
 │ Azure AI Foundry    │
@@ -34,8 +36,13 @@ Production-ready demo showcasing enterprise multi-model AI architecture with int
 │ • GPT-5-mini        │ (realtime/fallback)
 │ • GPT-5-Pro         │ (explicit deep reasoning)
 │ • model-router      │ (general interactive prompts)
+│ • Conversations API │ (durable chat history)
 └─────────────────────┘
 ```
+
+For the complete deployed architecture, identity model, networking, routing,
+conversation persistence, RAG flow, Voice Live flow, settings, and operational
+notes, see [`SOLUTION_ARCHITECTURE.md`](SOLUTION_ARCHITECTURE.md).
 
 ## 📋 Prerequisites
 
@@ -185,7 +192,9 @@ MEMORY_STORE_EMBEDDING_MODEL=text-embedding-3-small
 FRONTEND_URL=https://orange-hill-0db554803.7.azurestaticapps.net
 ```
 
-`FOUNDRY_PROJECT_ENDPOINT` enables the preview Foundry Memory Store integration. Leave it unset until the target project returns persisted memories rather than preview placeholder content.
+`FOUNDRY_PROJECT_ENDPOINT` enables project APIs such as Foundry Conversations.
+Use `MEMORY_STORE_ENABLED=false` until the target project returns persisted memories
+rather than preview placeholder content.
 
 **Frontend (.env.local):**
 ```
@@ -244,10 +253,10 @@ ms-tech-demo/
 
 ## 🚀 Future Enhancements
 
-- [ ] Microphone input (Web Audio API)
+- [x] Microphone input (Web Audio API)
 - [ ] Image upload with vision models
-- [ ] Persistent chat memory (CosmosDB)
-- [ ] RAG with Azure Search
+- [x] Persistent server-side chat conversations (Foundry Conversations API)
+- [x] RAG with Azure Search
 - [ ] Semantic Kernel integration
 - [ ] Advanced model telemetry
 - [ ] Response streaming
