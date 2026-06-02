@@ -8,11 +8,13 @@ class Message(BaseModel):
 class RoutingRequest(BaseModel):
     prompt: str = Field(..., description="User prompt to route")
     messages: Optional[List[Message]] = Field(default=None, description="Chat history")
+    conversationId: Optional[str] = Field(default=None, description="Foundry conversation ID")
 
 class RoutingResponse(BaseModel):
     modelUsed: str = Field(..., description="Name of the model used")
     reason: str = Field(..., description="Reason for routing to this model")
     answer: str = Field(..., description="The model's response")
+    conversationId: Optional[str] = Field(default=None, description="Foundry conversation ID")
 
 class RagRequest(BaseModel):
     question: str = Field(..., description="Question to answer using indexed RAG documents")

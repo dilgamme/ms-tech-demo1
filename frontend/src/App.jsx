@@ -1,13 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
 import { useIsAuthenticated, useMsal } from '@azure/msal-react'
 import { loginRequest, msalEnabled } from './auth'
-import { ragPrompt, routePrompt } from './services/api'
+import { deleteConversation, getConversation, listConversations, ragPrompt, routePrompt } from './services/api'
 import { createPcmPlayer, createPcmRecorder, createVoiceLiveSocket } from './services/voiceLive'
 import { MessageList } from './components/MessageList'
 import { ChatInput } from './components/ChatInput'
 import './index.css'
 
-const STORAGE_KEY = 'mstech_chat_history'
 const MAX_CONTEXT_MESSAGES = 6
 const MAX_CONTEXT_CHARS = 1200
 const VOICE_MODEL = 'Azure-Speech-Voice-Live'
@@ -32,6 +31,9 @@ function App() {
   const { instance, accounts } = useMsal()
   const isAuthenticated = useIsAuthenticated()
   const [messages, setMessages] = useState([])
+  const [conversations, setConversations] = useState([])
+  const [activeConversationId, setActiveConversationId] = useState(null)
+  const [isHistoryLoading, setIsHistoryLoading] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [isRagMode, setIsRagMode] = useState(false)
   const [isVoiceActive, setIsVoiceActive] = useState(false)
@@ -53,22 +55,9 @@ function App() {
   const [voiceStartedAt, setVoiceStartedAt] = useState(null)
   const [voiceElapsedSeconds, setVoiceElapsedSeconds] = useState(0)
 
-  // Load chat history on mount
   useEffect(() => {
-    const saved = localStorage.getItem(STORAGE_KEY)
-    if (saved) {
-      try {
-        setMessages(JSON.parse(saved))
-      } catch (e) {
-        console.error('Failed to load chat history:', e)
-      }
-    }
-  }, [])
-
-  // Save chat history whenever it changes
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(messages))
-  }, [messages])
+    refreshConversations()
+  }, [isAuthenticated])
 
   useEffect(() => {
     return () => {
@@ -112,7 +101,7 @@ function App() {
           role: msg.role,
           content: msg.content.slice(0, MAX_CONTEXT_CHARS),
         }))
-        response = await routePrompt(prompt, contextMessages)
+        response = await routePrompt(prompt, contextMessages, activeConversationId)
       }
       const assistantMessage = {
         id: createMessageId(),
@@ -124,6 +113,10 @@ function App() {
         sources: response.sources,
       }
       setMessages(prev => [...prev, assistantMessage])
+      if (response.conversationId) {
+        setActiveConversationId(response.conversationId)
+        await refreshConversations()
+      }
     } catch (error) {
       const errorMessage = {
         id: createMessageId(),
@@ -137,10 +130,44 @@ function App() {
   }
 
   const handleNewChat = () => {
-    if (messages.length > 0 && confirm('Clear chat history?')) {
+    if (messages.length === 0 || confirm('Start a new conversation?')) {
       setMessages([])
-      localStorage.removeItem(STORAGE_KEY)
+      setActiveConversationId(null)
     }
+  }
+
+  const refreshConversations = async () => {
+    try {
+      setConversations(await listConversations())
+    } catch (error) {
+      console.error('Failed to load conversations:', error)
+    }
+  }
+
+  const handleSelectConversation = async (conversationId) => {
+    setIsHistoryLoading(true)
+    try {
+      const conversation = await getConversation(conversationId)
+      setActiveConversationId(conversation.id)
+      setMessages(conversation.messages || [])
+    } catch (error) {
+      console.error('Failed to load conversation:', error)
+    } finally {
+      setIsHistoryLoading(false)
+    }
+  }
+
+  const handleDeleteConversation = async (event, conversationId) => {
+    event.stopPropagation()
+    if (!confirm('Delete this conversation?')) {
+      return
+    }
+    await deleteConversation(conversationId)
+    if (activeConversationId === conversationId) {
+      setMessages([])
+      setActiveConversationId(null)
+    }
+    await refreshConversations()
   }
 
   const handleMicrosoftSignIn = async () => {
@@ -535,39 +562,73 @@ function App() {
         </div>
       </header>
 
-      <main className="min-h-0 flex-1">
-        {isVoiceActive && (
-          <div className="mx-auto flex w-full max-w-5xl px-4 pt-3 sm:px-6">
-            <div className={`voice-live-banner ${voiceStatus === 'Speaking' ? 'voice-live-speaking' : ''}`}>
-              <span className="voice-live-orb" aria-hidden="true" />
-              <div>
-                <p className="text-sm font-medium text-slate-100">Voice Live is on</p>
-                <p className="text-xs text-slate-400">
-                  {voiceStatus || 'Listening'} until you stop it · {Math.floor(voiceElapsedSeconds / 60)}:{String(voiceElapsedSeconds % 60).padStart(2, '0')}
-                </p>
-              </div>
+      <div className="flex min-h-0 flex-1">
+        <aside className="hidden w-64 shrink-0 border-r border-slate-800 bg-slate-950/70 p-3 md:block">
+          <p className="mb-2 px-2 text-xs font-semibold uppercase tracking-wider text-slate-500">Conversations</p>
+          <div className="space-y-1">
+            {conversations.map(conversation => (
               <button
+                key={conversation.id}
                 type="button"
-                onClick={stopVoiceSession}
-                className="voice-end-button"
+                onClick={() => handleSelectConversation(conversation.id)}
+                className={`group flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-sm transition ${
+                  activeConversationId === conversation.id
+                    ? 'bg-slate-800 text-white'
+                    : 'text-slate-400 hover:bg-slate-900 hover:text-slate-200'
+                }`}
               >
-                End conversation
+                <span className="min-w-0 flex-1 truncate">{conversation.title}</span>
+                <span
+                  role="button"
+                  tabIndex={0}
+                  onClick={(event) => handleDeleteConversation(event, conversation.id)}
+                  className="opacity-0 transition group-hover:opacity-100"
+                  aria-label="Delete conversation"
+                >
+                  ×
+                </span>
               </button>
-              <div className="voice-live-wave" aria-hidden="true">
-                <span />
-                <span />
-                <span />
-                <span />
+            ))}
+            {!conversations.length && (
+              <p className="px-2 py-3 text-xs text-slate-600">Your conversations will appear here.</p>
+            )}
+          </div>
+        </aside>
+
+        <main className="min-h-0 min-w-0 flex-1">
+          {isVoiceActive && (
+            <div className="mx-auto flex w-full max-w-5xl px-4 pt-3 sm:px-6">
+              <div className={`voice-live-banner ${voiceStatus === 'Speaking' ? 'voice-live-speaking' : ''}`}>
+                <span className="voice-live-orb" aria-hidden="true" />
+                <div>
+                  <p className="text-sm font-medium text-slate-100">Voice Live is on</p>
+                  <p className="text-xs text-slate-400">
+                    {voiceStatus || 'Listening'} until you stop it · {Math.floor(voiceElapsedSeconds / 60)}:{String(voiceElapsedSeconds % 60).padStart(2, '0')}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={stopVoiceSession}
+                  className="voice-end-button"
+                >
+                  End conversation
+                </button>
+                <div className="voice-live-wave" aria-hidden="true">
+                  <span />
+                  <span />
+                  <span />
+                  <span />
+                </div>
               </div>
             </div>
-          </div>
-        )}
-        <MessageList
-          messages={messages}
-          isLoading={isLoading}
-          onSuggestionSelect={handleSendMessage}
-        />
-      </main>
+          )}
+          <MessageList
+            messages={messages}
+            isLoading={isLoading || isHistoryLoading}
+            onSuggestionSelect={handleSendMessage}
+          />
+        </main>
+      </div>
 
       <ChatInput
         onSend={handleSendMessage}

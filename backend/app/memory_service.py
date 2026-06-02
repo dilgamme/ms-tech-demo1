@@ -20,7 +20,7 @@ class FoundryMemoryService:
         self.endpoint = (settings.FOUNDRY_PROJECT_ENDPOINT or "").rstrip("/")
         self.store_name = settings.MEMORY_STORE_NAME
         self.api_version = settings.MEMORY_STORE_API_VERSION
-        self.enabled = bool(self.endpoint)
+        self.enabled = bool(self.endpoint and settings.MEMORY_STORE_ENABLED)
         self._store_ready = False
         self._store_lock = asyncio.Lock()
 

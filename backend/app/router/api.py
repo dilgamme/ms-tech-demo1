@@ -2,12 +2,20 @@ from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, 
 import logging
 
 from app.memory_service import get_memory_service
+from app.conversation_service import get_conversation_service
 from app.models import RoutingRequest, RoutingResponse, ErrorResponse
 from app.router_logic import get_router
 from app.user_auth import UserIdentity, get_optional_user_identity
 
 router = APIRouter(prefix="/api", tags=["routing"])
 logger = logging.getLogger(__name__)
+
+
+def _user_scope(identity: UserIdentity | None, browser_scope: str | None) -> str:
+    scope = identity.memory_scope if identity else browser_scope
+    if not scope:
+        raise HTTPException(status_code=400, detail="X-Memory-User-ID header is required")
+    return scope
 
 @router.post("/routePrompt", response_model=RoutingResponse)
 async def route_prompt(
@@ -36,13 +44,22 @@ async def route_prompt(
                 })
 
         memory_service = get_memory_service()
-        memory_scope = identity.memory_scope if identity else x_memory_user_id
+        memory_scope = _user_scope(identity, x_memory_user_id)
         memory_context = await memory_service.search_context(memory_scope, request.prompt)
         if memory_context:
             messages.insert(0, {"role": "system", "content": memory_context})
         
         # Route the prompt
         result = await router_instance.route_prompt(request.prompt, messages)
+        conversation_id = await get_conversation_service().append_turn(
+            memory_scope,
+            request.conversationId,
+            request.prompt,
+            result.answer,
+            result.modelUsed,
+            result.reason,
+        )
+        result.conversationId = conversation_id
         background_tasks.add_task(
             memory_service.update_from_turn,
             memory_scope,
@@ -71,9 +88,7 @@ async def reset_memory(
     x_memory_user_id: str | None = Header(default=None),
     identity: UserIdentity | None = Depends(get_optional_user_identity),
 ) -> dict:
-    memory_scope = identity.memory_scope if identity else x_memory_user_id
-    if not memory_scope:
-        raise HTTPException(status_code=400, detail="X-Memory-User-ID header is required")
+    memory_scope = _user_scope(identity, x_memory_user_id)
     deleted = await get_memory_service().delete_scope(memory_scope)
     return {"deleted": deleted}
 
@@ -84,8 +99,48 @@ async def search_memory(
     x_memory_user_id: str | None = Header(default=None),
     identity: UserIdentity | None = Depends(get_optional_user_identity),
 ) -> dict:
-    memory_scope = identity.memory_scope if identity else x_memory_user_id
-    if not memory_scope:
-        raise HTTPException(status_code=400, detail="X-Memory-User-ID header is required")
+    memory_scope = _user_scope(identity, x_memory_user_id)
     memories = await get_memory_service().search_memories(memory_scope, query)
     return {"memories": memories}
+
+
+@router.get("/conversations")
+async def list_conversations(
+    x_memory_user_id: str | None = Header(default=None),
+    identity: UserIdentity | None = Depends(get_optional_user_identity),
+) -> dict:
+    conversations = await get_conversation_service().list_conversations(_user_scope(identity, x_memory_user_id))
+    return {"conversations": conversations}
+
+
+@router.post("/conversations")
+async def create_conversation(
+    x_memory_user_id: str | None = Header(default=None),
+    identity: UserIdentity | None = Depends(get_optional_user_identity),
+) -> dict:
+    return await get_conversation_service().create_conversation(_user_scope(identity, x_memory_user_id))
+
+
+@router.get("/conversations/{conversation_id}")
+async def get_conversation(
+    conversation_id: str,
+    x_memory_user_id: str | None = Header(default=None),
+    identity: UserIdentity | None = Depends(get_optional_user_identity),
+) -> dict:
+    try:
+        return await get_conversation_service().get_conversation(_user_scope(identity, x_memory_user_id), conversation_id)
+    except PermissionError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@router.delete("/conversations/{conversation_id}")
+async def delete_conversation(
+    conversation_id: str,
+    x_memory_user_id: str | None = Header(default=None),
+    identity: UserIdentity | None = Depends(get_optional_user_identity),
+) -> dict:
+    try:
+        await get_conversation_service().delete_conversation(_user_scope(identity, x_memory_user_id), conversation_id)
+        return {"deleted": True}
+    except PermissionError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc

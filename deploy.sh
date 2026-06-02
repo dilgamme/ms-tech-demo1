@@ -46,6 +46,9 @@ az webapp config appsettings set \
     REASONING_MODEL="gpt-5-pro-reasoning" \
     FOUNDRY_ROUTER_ENDPOINT="https://ms-tech-demo1-router-se.cognitiveservices.azure.com/" \
     FOUNDRY_ROUTER_MODEL="model-router" \
+    FOUNDRY_PROJECT_ENDPOINT="https://ms-tech-demo-resource-we.services.ai.azure.com/api/projects/ms-tech-demo1" \
+    FOUNDRY_CONVERSATIONS_ENABLED="true" \
+    MEMORY_STORE_ENABLED="false" \
     AUTH_CLIENT_ID="ead1d8be-064b-4e75-af9b-66ab0c28a954" \
     AUTH_REQUIRED="false" \
     MEMORY_STORE_NAME="ms-tech-demo-memory" \

@@ -16,7 +16,9 @@ class Settings(BaseSettings):
 
     # Microsoft Foundry Memory Store API
     FOUNDRY_PROJECT_ENDPOINT: Optional[str] = None
+    FOUNDRY_CONVERSATIONS_ENABLED: bool = False
     MEMORY_STORE_NAME: str = "ms-tech-demo-memory"
+    MEMORY_STORE_ENABLED: bool = False
     MEMORY_STORE_CHAT_MODEL: str = "gpt-5.4-mini"
     MEMORY_STORE_EMBEDDING_MODEL: str = "text-embedding-3-small"
     MEMORY_STORE_API_VERSION: str = "2025-11-15-preview"

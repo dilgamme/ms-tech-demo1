@@ -29,17 +29,33 @@ api.interceptors.request.use(async (config) => {
   return config
 })
 
-export const routePrompt = async (prompt, messages = []) => {
+export const routePrompt = async (prompt, messages = [], conversationId = null) => {
   try {
     const response = await api.post('/api/routePrompt', {
       prompt,
       messages,
+      conversationId,
     })
     return response.data
   } catch (error) {
     console.error('API Error:', error)
     throw error
   }
+}
+
+export const listConversations = async () => {
+  const response = await api.get('/api/conversations')
+  return response.data.conversations
+}
+
+export const getConversation = async (conversationId) => {
+  const response = await api.get(`/api/conversations/${conversationId}`)
+  return response.data
+}
+
+export const deleteConversation = async (conversationId) => {
+  const response = await api.delete(`/api/conversations/${conversationId}`)
+  return response.data
 }
 
 export const ragPrompt = async (question, topK = 5) => {
