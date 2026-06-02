@@ -181,6 +181,8 @@ MEMORY_STORE_EMBEDDING_MODEL=text-embedding-3-small
 FRONTEND_URL=https://orange-hill-0db554803.7.azurestaticapps.net
 ```
 
+`FOUNDRY_PROJECT_ENDPOINT` enables the preview Foundry Memory Store integration. Leave it unset until the target project returns persisted memories rather than preview placeholder content.
+
 **Frontend (.env.local):**
 ```
 VITE_API_URL=https://mstech-demo-router-api.azurewebsites.net
