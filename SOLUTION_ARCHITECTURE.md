@@ -40,24 +40,82 @@ The demo shows an Azure-native AI application architecture with:
 ## 3. High-Level Architecture
 
 ```mermaid
-flowchart LR
-    User[Browser User] -->|HTTPS| SWA[Azure Static Web App<br/>React + Vite]
-    User -->|Optional Microsoft sign-in| Entra[Microsoft identity platform]
-    SWA -->|HTTPS + optional access token| API[Azure App Service<br/>FastAPI]
+flowchart TB
+    User[Browser user]
 
-    API -->|Managed identity + private DNS| FoundryWE[Foundry project ms-tech-demo1<br/>West Europe]
-    API -->|Managed identity + private DNS| RouterSE[Foundry model-router<br/>Sweden Central]
-    API -->|Managed identity + private DNS| Search[Azure AI Search]
-    Search -->|Shared private link| Blob[Blob Storage]
+    subgraph Public["Public entry point"]
+        SWA[Azure Static Web App<br/>mstech-demo-ui<br/>React + Vite]
+        Entra[Microsoft identity platform<br/>Optional Microsoft account sign-in]
+    end
 
-    FoundryWE --> Models[GPT-5 mini<br/>GPT-5 Pro<br/>DeepSeek<br/>Embeddings]
-    FoundryWE --> Conversations[Foundry Conversations API]
-    FoundryWE -. disabled .-> Memory[Foundry Memory Store preview]
+    subgraph VNet["vnet-mstech-demo - West Europe"]
+        subgraph AppSubnet["snet-appservice-integration"]
+            API[Azure App Service<br/>mstech-demo-router-api<br/>FastAPI + managed identity]
+        end
+
+        subgraph PESubnet["snet-private-endpoints"]
+            PEAPI[App Service private endpoint]
+            PESearch[AI Search private endpoint]
+            PEBlob[Blob private endpoint]
+            PEFoundry[Foundry private endpoint]
+            PERouter[Router private endpoint]
+        end
+    end
+
+    subgraph FoundryWE["Microsoft Foundry - West Europe"]
+        Project[Project: ms-tech-demo1]
+        Models[Model deployments<br/>GPT-5 mini, GPT-5 Pro, DeepSeek<br/>text-embedding-3-small]
+        Conversations[Foundry Conversations API<br/>Server-side chat history]
+        Memory[Foundry Memory Store preview<br/>Adapter implemented, disabled]
+    end
+
+    subgraph FoundrySE["Microsoft Foundry - Sweden Central"]
+        Router[Managed model-router deployment]
+    end
+
+    subgraph RAG["Private RAG data path - West Europe"]
+        Search[Azure AI Search<br/>mstech-demo-search]
+        Blob[Blob Storage<br/>mstechdemoragstorage]
+    end
+
+    KV[Azure Key Vault<br/>Secret-management foundation]
+    Insights[Application Insights<br/>Backend telemetry]
+
+    User -->|HTTPS| SWA
+    User -->|Optional OAuth sign-in| Entra
+    Entra -. optional access token .-> SWA
+    SWA -->|HTTPS API calls<br/>optional bearer token| API
+
+    PEAPI --- API
+    API -->|Managed identity + private DNS| PEFoundry
+    PEFoundry --> Project
+    Project --> Models
+    Project --> Conversations
+    Project -. disabled preview path .-> Memory
+
+    API -->|Managed identity + private DNS| PERouter
+    PERouter --> Router
+
+    API -->|Managed identity + private DNS| PESearch
+    PESearch --> Search
+    Search -->|Shared private link| PEBlob
+    PEBlob --> Blob
+
+    API -. telemetry .-> Insights
+    API -. foundation for secrets .-> KV
+
+    classDef public fill:#dbeafe,stroke:#2563eb,color:#172554
+    classDef private fill:#dcfce7,stroke:#16a34a,color:#14532d
+    classDef disabled fill:#f3f4f6,stroke:#6b7280,color:#374151,stroke-dasharray: 5 5
+    class User,SWA,Entra public
+    class API,PEAPI,PESearch,PEBlob,PEFoundry,PERouter,Project,Models,Conversations,Router,Search,Blob,KV,Insights private
+    class Memory disabled
 ```
 
 The Static Web App remains public by design. Backend-to-Azure service traffic uses
 private networking where supported. Public access is disabled for private backend
-resources.
+resources. Solid arrows show active request or data paths. Dotted arrows show
+optional, supporting, or currently disabled paths.
 
 ## 4. Deployed Azure Resources
 
