@@ -21,7 +21,14 @@ export const msalInstance = new PublicClientApplication({
   },
 })
 
-export const msalInitialization = msalInstance.initialize()
+export const initializeAuth = async () => {
+  await msalInstance.initialize()
+  const redirectResult = await msalInstance.handleRedirectPromise()
+  const account = redirectResult?.account || msalInstance.getAllAccounts()[0]
+  if (account) {
+    msalInstance.setActiveAccount(account)
+  }
+}
 
 export const loginRequest = apiScope ? { scopes: [apiScope] } : { scopes: [] }
 
@@ -30,7 +37,6 @@ export const getApiAccessToken = async () => {
     return null
   }
 
-  await msalInitialization
   const account = msalInstance.getActiveAccount() || msalInstance.getAllAccounts()[0]
   if (!account) {
     return null

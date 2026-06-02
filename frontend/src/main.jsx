@@ -2,10 +2,10 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { MsalProvider } from '@azure/msal-react'
 import App from './App.jsx'
-import { msalInitialization, msalInstance } from './auth'
+import { initializeAuth, msalInstance } from './auth'
 import './index.css'
 
-await msalInitialization
+await initializeAuth()
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>

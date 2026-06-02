@@ -144,12 +144,11 @@ function App() {
   }
 
   const handleMicrosoftSignIn = async () => {
-    const result = await instance.loginPopup(loginRequest)
-    instance.setActiveAccount(result.account)
+    await instance.loginRedirect(loginRequest)
   }
 
   const handleMicrosoftSignOut = async () => {
-    await instance.logoutPopup({
+    await instance.logoutRedirect({
       account: instance.getActiveAccount() || accounts[0],
       postLogoutRedirectUri: window.location.origin,
     })
