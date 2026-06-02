@@ -26,6 +26,9 @@ jobs:
 
     - name: Package dependencies for App Service
       run: cd backend && python -m pip install -r requirements.txt --target .python_packages/lib/site-packages
+
+    - name: Create App Service package
+      run: cd backend && zip -r ../backend.zip . -x "venv/*" "__pycache__/*" "*.pyc"
     
     - name: 'Deploy to Azure Web App'
       uses: azure/webapps-deploy@v2
@@ -33,4 +36,4 @@ jobs:
         app-name: 'mstech-demo-router-api'
         slot-name: 'production'
         publish-profile: ${{ secrets.AzureAppService_PublishProfile_44751b3e1cc1412289a5ed70da06ca2f }}
-        package: backend
+        package: backend.zip
