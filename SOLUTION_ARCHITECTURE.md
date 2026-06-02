@@ -391,6 +391,21 @@ The backend workflow:
 The explicit ZIP step is required. Deploying the backend directory directly omitted
 `.python_packages`, causing App Service startup failures because `uvicorn` was missing.
 
+When deploying the frontend manually, set the production Vite environment variables
+before running `npm run build`. Vite embeds these values into the browser bundle at
+build time:
+
+```bash
+VITE_API_URL=https://mstech-demo-router-api.azurewebsites.net \
+VITE_ENTRA_CLIENT_ID=ead1d8be-064b-4e75-af9b-66ab0c28a954 \
+VITE_ENTRA_API_SCOPE=api://ead1d8be-064b-4e75-af9b-66ab0c28a954/access_as_user \
+npm run build
+```
+
+Deploying a locally built bundle without `VITE_API_URL` makes the browser use the
+development fallback `http://localhost:8000`, which appears as `Network Error` in
+the hosted frontend.
+
 ## 16. Validation Record
 
 Validated on 2026-06-02:
