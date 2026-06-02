@@ -6,6 +6,7 @@ from app.config import settings
 
 COGNITIVE_SERVICES_SCOPE = "https://cognitiveservices.azure.com/.default"
 SEARCH_SCOPE = "https://search.azure.com/.default"
+FOUNDRY_SCOPE = "https://ai.azure.com/.default"
 
 
 @lru_cache
@@ -40,3 +41,8 @@ def get_voice_live_auth_headers() -> dict[str, str]:
     if not settings.VOICE_LIVE_KEY:
         raise ValueError("VOICE_LIVE_KEY is required when managed identity is disabled")
     return {"api-key": settings.VOICE_LIVE_KEY}
+
+
+def get_foundry_auth_headers() -> dict[str, str]:
+    token = get_azure_credential().get_token(FOUNDRY_SCOPE)
+    return {"Authorization": f"Bearer {token.token}"}

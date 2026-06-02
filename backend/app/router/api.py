@@ -1,6 +1,7 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Header, HTTPException
 import logging
 
+from app.memory_service import get_memory_service
 from app.models import RoutingRequest, RoutingResponse, ErrorResponse
 from app.router_logic import get_router
 
@@ -8,7 +9,11 @@ router = APIRouter(prefix="/api", tags=["routing"])
 logger = logging.getLogger(__name__)
 
 @router.post("/routePrompt", response_model=RoutingResponse)
-async def route_prompt(request: RoutingRequest) -> RoutingResponse:
+async def route_prompt(
+    request: RoutingRequest,
+    background_tasks: BackgroundTasks,
+    x_memory_user_id: str | None = Header(default=None),
+) -> RoutingResponse:
     """
     Route a prompt to the appropriate model based on intent classification.
     
@@ -27,9 +32,20 @@ async def route_prompt(request: RoutingRequest) -> RoutingResponse:
                     "role": msg.role,
                     "content": msg.content
                 })
+
+        memory_service = get_memory_service()
+        memory_context = await memory_service.search_context(x_memory_user_id, request.prompt)
+        if memory_context:
+            messages.insert(0, {"role": "system", "content": memory_context})
         
         # Route the prompt
         result = await router_instance.route_prompt(request.prompt, messages)
+        background_tasks.add_task(
+            memory_service.update_from_turn,
+            x_memory_user_id,
+            request.prompt,
+            result.answer,
+        )
         
         logger.info(f"Routed to {result.modelUsed} with reason: {result.reason}")
         return result
@@ -40,3 +56,16 @@ async def route_prompt(request: RoutingRequest) -> RoutingResponse:
             status_code=500,
             detail=f"Error processing request: {str(e)}"
         )
+
+
+@router.get("/memory/status")
+async def memory_status() -> dict:
+    return await get_memory_service().status()
+
+
+@router.post("/memory/reset")
+async def reset_memory(x_memory_user_id: str | None = Header(default=None)) -> dict:
+    if not x_memory_user_id:
+        raise HTTPException(status_code=400, detail="X-Memory-User-ID header is required")
+    deleted = await get_memory_service().delete_scope(x_memory_user_id)
+    return {"deleted": deleted}

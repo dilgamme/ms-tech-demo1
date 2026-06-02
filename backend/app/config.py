@@ -13,6 +13,14 @@ class Settings(BaseSettings):
     REASONING_MODEL: str = "gpt-5-pro-reasoning"
     FOUNDRY_ROUTER_ENDPOINT: Optional[str] = None
     FOUNDRY_ROUTER_MODEL: str = "model-router"
+
+    # Microsoft Foundry Memory Store API
+    FOUNDRY_PROJECT_ENDPOINT: Optional[str] = None
+    MEMORY_STORE_NAME: str = "ms-tech-demo-memory"
+    MEMORY_STORE_CHAT_MODEL: str = "gpt-5.4-mini"
+    MEMORY_STORE_EMBEDDING_MODEL: str = "text-embedding-3-small"
+    MEMORY_STORE_API_VERSION: str = "2025-11-15-preview"
+    MEMORY_STORE_MAX_MEMORIES: int = 5
     
     # Frontend URL for CORS
     FRONTEND_URL: Optional[str] = None
