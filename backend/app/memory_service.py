@@ -29,18 +29,7 @@ class FoundryMemoryService:
             return ""
 
         try:
-            await self._ensure_store()
-            payload = {
-                "scope": self._normalize_scope(scope),
-                "items": [self._message_item("user", prompt)],
-                "options": {"max_memories": settings.MEMORY_STORE_MAX_MEMORIES},
-            }
-            response = await self._request(
-                "POST",
-                f"/memory_stores/{self.store_name}:search_memories",
-                payload,
-            )
-            memories = self._extract_memories(response)
+            memories = await self.search_memories(scope, prompt)
             if not memories:
                 return ""
 
@@ -53,6 +42,25 @@ class FoundryMemoryService:
         except Exception as exc:
             logger.warning("Foundry memory search skipped after %s: %s", type(exc).__name__, exc)
             return ""
+
+    async def search_memories(self, scope: str, prompt: str | None = None) -> list[str]:
+        if not self.enabled:
+            return []
+
+        await self._ensure_store()
+        payload: dict[str, Any] = {"scope": self._normalize_scope(scope)}
+        if prompt:
+            payload["items"] = [self._message_item("user", prompt)]
+            payload["options"] = {"max_memories": settings.MEMORY_STORE_MAX_MEMORIES}
+
+        response = await self._request(
+            "POST",
+            f"/memory_stores/{self.store_name}:search_memories",
+            payload,
+        )
+        memories = self._extract_memories(response)
+        logger.info("Foundry memory search returned %s item(s)", len(memories))
+        return memories
 
     async def update_from_turn(
         self,
@@ -73,11 +81,12 @@ class FoundryMemoryService:
                 ],
                 "update_delay": 0,
             }
-            await self._request(
+            update = await self._request(
                 "POST",
                 f"/memory_stores/{self.store_name}:update_memories",
                 payload,
             )
+            await self._wait_for_update(update)
         except Exception as exc:
             logger.warning("Foundry memory update skipped after %s: %s", type(exc).__name__, exc)
 
@@ -187,6 +196,25 @@ class FoundryMemoryService:
             if isinstance(content, str) and content.strip():
                 values.append(content.strip())
         return values
+
+    async def _wait_for_update(self, update: dict[str, Any]) -> None:
+        update_id = update.get("update_id")
+        if not update_id:
+            logger.info("Foundry memory update accepted without an operation ID")
+            return
+
+        for _ in range(24):
+            await asyncio.sleep(5)
+            result = await self._request(
+                "GET",
+                f"/memory_stores/{self.store_name}/updates/{update_id}",
+            )
+            status = str(result.get("status", "")).lower()
+            if status in {"completed", "succeeded", "failed"}:
+                logger.info("Foundry memory update %s finished with status %s", update_id, status)
+                return
+
+        logger.warning("Foundry memory update %s is still processing", update_id)
 
 
 _memory_service = FoundryMemoryService()

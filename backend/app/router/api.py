@@ -1,4 +1,4 @@
-from fastapi import APIRouter, BackgroundTasks, Header, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Header, HTTPException, Query
 import logging
 
 from app.memory_service import get_memory_service
@@ -69,3 +69,14 @@ async def reset_memory(x_memory_user_id: str | None = Header(default=None)) -> d
         raise HTTPException(status_code=400, detail="X-Memory-User-ID header is required")
     deleted = await get_memory_service().delete_scope(x_memory_user_id)
     return {"deleted": deleted}
+
+
+@router.get("/memory/search")
+async def search_memory(
+    query: str | None = Query(default=None, max_length=1000),
+    x_memory_user_id: str | None = Header(default=None),
+) -> dict:
+    if not x_memory_user_id:
+        raise HTTPException(status_code=400, detail="X-Memory-User-ID header is required")
+    memories = await get_memory_service().search_memories(x_memory_user_id, query)
+    return {"memories": memories}
