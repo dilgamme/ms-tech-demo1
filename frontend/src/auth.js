@@ -49,9 +49,10 @@ export const getApiAccessToken = async () => {
     })
     return result.accessToken
   } catch (error) {
-    if (error instanceof InteractionRequiredAuthError) {
-      return null
-    }
-    throw error
+    const reason = error instanceof InteractionRequiredAuthError
+      ? 'Microsoft sign-in requires interaction'
+      : 'Microsoft access token is temporarily unavailable'
+    console.warn(`${reason}; continuing with anonymous demo access.`, error)
+    return null
   }
 }

@@ -21,13 +21,32 @@ const api = axios.create({
 })
 
 api.interceptors.request.use(async (config) => {
-  const accessToken = await getApiAccessToken()
+  const accessToken = config.skipOptionalAuth ? null : await getApiAccessToken()
   if (accessToken) {
     config.headers.Authorization = `Bearer ${accessToken}`
   }
   config.headers['X-Memory-User-ID'] = getMemoryUserId()
   return config
 })
+
+api.interceptors.response.use(
+  response => response,
+  async (error) => {
+    const config = error.config
+    if (
+      error.response?.status === 401
+      && config?.headers?.Authorization
+      && !config.retriedWithoutOptionalAuth
+    ) {
+      delete config.headers.Authorization
+      config.skipOptionalAuth = true
+      config.retriedWithoutOptionalAuth = true
+      console.warn('Microsoft token was rejected; retrying with anonymous demo access.')
+      return api.request(config)
+    }
+    throw error
+  },
+)
 
 export const routePrompt = async (prompt, messages = [], conversationId = null) => {
   try {

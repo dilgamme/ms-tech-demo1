@@ -147,6 +147,12 @@ The backend validates:
 `AUTH_REQUIRED=false` keeps anonymous demo access available. When authentication is
 enforced later, set `AUTH_REQUIRED=true`.
 
+Because authentication is optional for this demo, the frontend fails open when an
+MSAL silent token refresh is unavailable. It also retries once without the optional
+token if the API rejects a token with `401`. The anonymous browser UUID then remains
+the conversation-ownership scope. Set `AUTH_REQUIRED=true` and remove this fallback
+before treating sign-in as an authorization boundary for production.
+
 ### 6.2 User Scope
 
 The backend calculates a user scope for conversation ownership and future memory:
@@ -412,6 +418,9 @@ Validated on 2026-06-02:
 - The conversation sidebar is desktop-first and hidden below the `md` breakpoint.
 - Anonymous visitors retain a browser UUID. Signed-in users receive identity-bound
   ownership scopes.
+- Optional Microsoft authentication intentionally falls back to the anonymous
+  browser scope when silent token acquisition or validation fails. This preserves
+  demo availability but must be tightened before production authorization use.
 
 ## 18. Documentation Maintenance Rule
 
@@ -430,4 +439,3 @@ For every future feature:
 - [Microsoft Entra identity platform](https://learn.microsoft.com/en-us/entra/identity-platform/)
 - [Azure App Service VNet integration](https://learn.microsoft.com/en-us/azure/app-service/overview-vnet-integration)
 - [Azure Private Endpoint DNS](https://learn.microsoft.com/en-us/azure/private-link/private-endpoint-dns)
-
