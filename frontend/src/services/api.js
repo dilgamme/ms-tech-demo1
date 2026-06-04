@@ -90,6 +90,21 @@ export const ragPrompt = async (question, topK = 5) => {
   }
 }
 
+export const generateImage = async (prompt) => {
+  const response = await api.post('/api/images/generate', {
+    prompt,
+  })
+  return response.data
+}
+
+export const analyzeImage = async (prompt, imageDataUrl) => {
+  const response = await api.post('/api/images/analyze', {
+    prompt,
+    imageDataUrl,
+  })
+  return response.data
+}
+
 export const resetMemory = async () => {
   const response = await api.post('/api/memory/reset')
   return response.data

@@ -97,6 +97,19 @@ const AssistantMessage = ({ content }) => (
   </ReactMarkdown>
 )
 
+const MessageImage = ({ imageDataUrl, alt = 'Chat image' }) => {
+  if (!imageDataUrl) {
+    return null
+  }
+  return (
+    <img
+      src={imageDataUrl}
+      alt={alt}
+      className="mb-3 max-h-[420px] rounded-lg border border-slate-700 object-contain"
+    />
+  )
+}
+
 export const MessageList = ({ messages, isLoading, onSuggestionSelect }) => {
   const bottomRef = useRef(null)
 
@@ -139,6 +152,7 @@ export const MessageList = ({ messages, isLoading, onSuggestionSelect }) => {
               <div key={idx} className={`flex items-start gap-3 ${isUser ? 'justify-end' : 'justify-start'}`}>
                 {!isUser && <SenderIcon role={msg.role} />}
                 <article className={`message-bubble ${isUser ? 'message-user' : 'message-assistant'}`}>
+                  <MessageImage imageDataUrl={msg.imageDataUrl} alt={msg.content || 'Chat image'} />
                   {isUser
                     ? <div className="whitespace-pre-wrap leading-7">{msg.content}</div>
                     : <AssistantMessage content={msg.content} />}

@@ -8,21 +8,24 @@ public frontend.
 Private endpoints and DNS are configured for:
 
 - App Service
-- Azure AI Search
 - Blob Storage
 - Microsoft Foundry
 
-App Service uses VNet integration for outbound traffic. Azure AI Search uses a
-shared private link and its private execution environment to read Blob Storage.
+Azure AI Search private endpoint deployment is optional in
+`private-network.bicep` and currently disabled because `mstech-demo-search-free` runs
+on the Free tier for the demo. Free-tier Azure AI Search does not support private
+endpoints or managed identity data-plane authorization.
 
-Public network access is disabled for Azure AI Search and Blob Storage.
+App Service uses VNet integration for outbound traffic. Blob Storage remains
+private. The free Search service uses its public HTTPS endpoint with a Search key,
+and indexing is performed manually by pushing document chunks into the index.
 
-Microsoft Foundry keeps public network access enabled because Azure AI Search
-shared private links do not support the consolidated AIServices embedding
-resource. App Service resolves the Foundry endpoint privately through the VNet;
-Search uses the public Foundry endpoint with managed identity.
+Public network access is disabled for Blob Storage and private backend resources
+where supported. Azure AI Search is the cost-saving exception while it stays on
+the Free tier.
 
-After deploying `private-network.bicep`, approve the Search-managed Blob Storage
+If Search is moved back to Basic or higher, set `enableSearchPrivateEndpoint=true`
+when deploying `private-network.bicep`, approve the Search-managed Blob Storage
 private endpoint connection, set the Search indexer's
 `parameters.configuration.executionEnvironment` value to `private`, and disable
-public network access for Search and Blob Storage after validation.
+public network access for Search after validation.

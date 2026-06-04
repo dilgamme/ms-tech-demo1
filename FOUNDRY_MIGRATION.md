@@ -10,7 +10,7 @@ The application data path is aligned in West Europe:
 |----------|------|--------|
 | App Service | `mstech-demo-router-api` | West Europe |
 | Storage account | `mstechdemoragstorage` | West Europe |
-| Azure AI Search | `mstech-demo-search` | West Europe |
+| Azure AI Search | `mstech-demo-search-free` | West Europe |
 | Virtual network | `vnet-mstech-demo` | West Europe |
 | Foundry AIServices account | `ms-tech-demo-resource-we` | West Europe |
 | Foundry project | `ms-tech-demo1` | West Europe |
@@ -47,16 +47,24 @@ has been observed during the demo workload.
 
 ## Azure AI Search Indexer
 
-The RAG indexer `rag-1779444354799-indexer` previously ran every day. Its native
-schedule has been removed, so it now runs on demand only.
+The RAG indexer `rag-1779444354799-indexer` previously ran every day on the paid
+Search service. That service was removed for cost control and replaced by
+free-tier Search service `mstech-demo-search-free`.
 
-Azure AI Search indexer schedules accept a maximum interval of one day. A native
-`P10D` schedule is rejected by the service. If automated indexing every 10 days is
-required later, use a private-network-compatible external trigger to invoke:
+Free-tier Search does not support the previous private endpoint/shared private
+link indexer path, so indexing is now manual. Create or refresh the lexical index
+by pushing selected `.md` and `.txt` files directly:
 
-```http
-POST https://mstech-demo-search.search.windows.net/indexers/rag-1779444354799-indexer/run?api-version=2025-09-01
+```bash
+export AZURE_SEARCH_ENDPOINT=https://mstech-demo-search-free.search.windows.net
+export AZURE_SEARCH_KEY=<search-admin-key>
+export AZURE_SEARCH_INDEX=rag-1779444354799
+python3 scripts/manual_index_search.py --delete-index --create-index --docs-dir ./docs-to-index
 ```
+
+If automated indexing every 10 days is required later, use a secure external
+trigger such as Azure Functions timer trigger, Logic Apps, or GitHub Actions to
+run the same script.
 
 ## Managed Model Router Experiment
 

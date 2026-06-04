@@ -1,6 +1,6 @@
 # MS Tech Demo Solution Architecture
 
-Last updated: 2026-06-02
+Last updated: 2026-06-04
 
 This is the living architecture document for the `ms-tech-demo1` solution. Update it
 whenever a feature changes the deployed architecture, security model, data flow,
@@ -16,10 +16,12 @@ The demo shows an Azure-native AI application architecture with:
 - Managed identity for Azure service-to-service authentication.
 - Hybrid multi-model routing with deterministic rules and the managed Microsoft
   Foundry `model-router`.
-- Private retrieval-augmented generation (RAG) using Azure AI Search and Blob Storage.
+- Cost-optimized retrieval-augmented generation (RAG) using free-tier Azure AI
+  Search with manual indexing.
 - Voice Live support through the backend WebSocket proxy.
 - Durable ChatGPT-style conversation history using the Microsoft Foundry
   Conversations API.
+- Image generation and image understanding modules.
 - An implemented but disabled Microsoft Foundry Memory Store adapter for future
   cross-conversation preference recall.
 
@@ -32,9 +34,11 @@ The demo shows an Azure-native AI application architecture with:
 | Microsoft account sign-in | Active | Personal Microsoft and organizational Entra accounts |
 | Anonymous access | Active | Retained for demo visitors |
 | Hybrid model routing | Active | Deterministic rules plus managed `model-router` |
-| RAG | Active | Azure AI Search index backed by private Blob Storage |
+| RAG | Active | Free-tier Azure AI Search, manually indexed |
 | Voice Live | Active | Browser microphone proxied through App Service |
 | Foundry Conversations API | Active | Replaces browser-stored chat history |
+| Image generation | Active | `gpt-image-1-mini` in Sweden Central |
+| Image understanding | Active | Uploaded images analyzed by `gpt-5.4-mini` |
 | Foundry Memory Store | Disabled | Adapter exists, but preview endpoint returned placeholder sample memories |
 
 ## 3. High-Level Architecture
@@ -55,7 +59,7 @@ flowchart TB
 
         subgraph PESubnet["snet-private-endpoints"]
             PEAPI[App Service private endpoint]
-            PESearch[AI Search private endpoint]
+            PESearch[AI Search private endpoint<br/>Disabled on Free tier]
             PEBlob[Blob private endpoint]
             PEFoundry[Foundry private endpoint]
             PERouter[Router private endpoint]
@@ -71,10 +75,11 @@ flowchart TB
 
     subgraph FoundrySE["Microsoft Foundry - Sweden Central"]
         Router[Managed model-router deployment]
+        ImageGen[gpt-image-1-mini<br/>Image generation]
     end
 
     subgraph RAG["Private RAG data path - West Europe"]
-        Search[Azure AI Search<br/>mstech-demo-search]
+        Search[Azure AI Search Free<br/>mstech-demo-search-free]
         Blob[Blob Storage<br/>mstechdemoragstorage]
     end
 
@@ -95,11 +100,10 @@ flowchart TB
 
     API -->|Managed identity + private DNS| PERouter
     PERouter --> Router
+    PERouter --> ImageGen
 
-    API -->|Managed identity + private DNS| PESearch
-    PESearch --> Search
-    Search -->|Shared private link| PEBlob
-    PEBlob --> Blob
+    API -->|API key over HTTPS<br/>Free tier public endpoint| Search
+    Search -. no native indexer on Free/private Blob path .-> Blob
 
     API -. telemetry .-> Insights
     API -. foundation for secrets .-> KV
@@ -108,14 +112,17 @@ flowchart TB
     classDef private fill:#dcfce7,stroke:#16a34a,color:#14532d
     classDef disabled fill:#f3f4f6,stroke:#6b7280,color:#374151,stroke-dasharray: 5 5
     class User,SWA,Entra public
-    class API,PEAPI,PESearch,PEBlob,PEFoundry,PERouter,Project,Models,Conversations,Router,Search,Blob,KV,Insights private
-    class Memory disabled
+    class API,PEAPI,PESearch,PEBlob,PEFoundry,PERouter,Project,Models,Conversations,Router,ImageGen,Search,Blob,KV,Insights private
+    class Memory,PESearch disabled
 ```
 
 The Static Web App remains public by design. Backend-to-Azure service traffic uses
 private networking where supported. Public access is disabled for private backend
-resources. Solid arrows show active request or data paths. Dotted arrows show
-optional, supporting, or currently disabled paths.
+resources except Azure AI Search, which currently uses the Free tier for cost
+control. Free-tier Azure AI Search does not support private endpoints or managed
+identity data-plane authorization, so RAG uses a Search key and manual indexing.
+Solid arrows show active request or data paths. Dotted arrows show optional,
+supporting, or currently disabled paths.
 
 ## 4. Deployed Azure Resources
 
@@ -128,7 +135,7 @@ Primary resource group: `rg-ms-tech-demo1`
 | App Service | `mstech-demo-router-api` | West Europe | Python FastAPI backend |
 | Virtual network | `vnet-mstech-demo` | West Europe | Private service connectivity |
 | Blob Storage account | `mstechdemoragstorage` | West Europe | RAG source documents |
-| Azure AI Search | `mstech-demo-search` | West Europe | RAG index and retrieval |
+| Azure AI Search | `mstech-demo-search-free` | West Europe | Free-tier RAG index and retrieval |
 | Key Vault | `kv-mstech-demo` | West Europe | Secret-management foundation |
 | Foundry AIServices account | `ms-tech-demo-resource-we` | West Europe | Main models and project |
 | Foundry project | `ms-tech-demo1` | West Europe | Conversations and main Foundry APIs |
@@ -157,7 +164,7 @@ Private endpoints:
 | Endpoint | Target |
 |----------|--------|
 | `pe-mstech-demo-router-api` | App Service |
-| `pe-mstech-demo-search` | Azure AI Search |
+| `pe-mstech-demo-search-free` | Azure AI Search; disabled while Search uses the Free tier |
 | `pe-mstech-demo-ragstorage-blob` | Blob Storage |
 | `pe-mstech-demo-foundry` | West Europe Foundry AIServices account |
 | `pe-ms-tech-demo1-router-se` | Sweden Central router AIServices account |
@@ -173,8 +180,11 @@ privatelink.openai.azure.com
 privatelink.services.ai.azure.com
 ```
 
-Azure AI Search uses shared private link
-`spl-mstech-demo-ragstorage-blob` to read indexed documents from Blob Storage.
+Azure AI Search private endpoint and shared private link are disabled while Search
+uses the Free tier. Free-tier Search does not support private endpoints. Because
+Blob Storage remains private, document ingestion is manual: selected `.md` and
+`.txt` files are pushed directly into the Search index with
+`scripts/manual_index_search.py`.
 
 ## 6. Identity and Access
 
@@ -226,7 +236,8 @@ longer stored in browser `localStorage`.
 
 ### 6.3 Service-to-Service Authentication
 
-The App Service system-assigned managed identity authenticates to Azure services.
+The App Service system-assigned managed identity authenticates to Azure services
+that support the production identity path.
 Its principal ID is:
 
 ```text
@@ -234,7 +245,9 @@ Its principal ID is:
 ```
 
 The identity has Foundry and Cognitive Services roles required by the model and
-project APIs. Azure AI Search also uses managed identity in production.
+project APIs. Azure AI Search currently uses an `AZURE_SEARCH_KEY` override because
+the Free tier does not support managed identity authorization for data-plane
+queries.
 
 No model API keys are embedded in the application source.
 
@@ -258,8 +271,22 @@ Foundry AIServices account: `ms-tech-demo1-router-se`
 | Deployment | Version | SKU | Capacity |
 |------------|---------|-----|----------|
 | `model-router` | `2025-11-18` | `GlobalStandard` | 10 |
+| `gpt-image-1-mini` | `2025-10-06` | `GlobalStandard` | 1 |
 
-The router account is private-networked and public network access is disabled.
+The router/image account is private-networked and public network access is disabled.
+
+### 7.3 Image Modules
+
+Image support is split into two simple demo modules:
+
+| User intent | Backend endpoint | Model |
+|-------------|------------------|-------|
+| Text-to-image prompt such as "generate an image..." | `POST /api/images/generate` | `gpt-image-1-mini` |
+| Uploaded image plus question | `POST /api/images/analyze` | `gpt-5.4-mini` |
+
+The frontend routes image-generation prompts with a lightweight intent detector.
+The image upload button sends a browser data URL to App Service for recognition.
+The browser never calls Foundry or Azure OpenAI directly.
 
 ## 8. Prompt Routing Flow
 
@@ -365,8 +392,9 @@ lifecycle was validated successfully with real persisted records.
 flowchart LR
     User[User question] --> UI[RAG toggle in UI]
     UI --> API[POST /api/rag]
-    API --> Search[Azure AI Search]
-    Search --> Blob[Indexed Blob Storage content]
+    API --> Search[Azure AI Search Free<br/>manual lexical index]
+    Manual[Manual indexing script<br/>scripts/manual_index_search.py] --> Search
+    Docs[Selected .md/.txt files] --> Manual
     Search --> API
     API --> Mini[gpt-5.4-mini]
     Mini --> API
@@ -380,8 +408,19 @@ rag-1779444354799
 ```
 
 The native Search indexer schedule was removed. Indexing runs on demand to reduce
-cost. Azure AI Search native schedules do not support a ten-day interval; use an
-external private-network-compatible trigger if ten-day automation is required.
+cost. Free-tier Azure AI Search does not support the previous private endpoint and
+shared-private-link indexer path, so manual indexing pushes document chunks
+directly to the index:
+
+```bash
+export AZURE_SEARCH_ENDPOINT=https://mstech-demo-search-free.search.windows.net
+export AZURE_SEARCH_KEY=<search-admin-key>
+export AZURE_SEARCH_INDEX=rag-1779444354799
+python3 scripts/manual_index_search.py --create-index --docs-dir ./docs-to-index
+```
+
+The free-tier index is lexical. `AZURE_SEARCH_VECTOR_ENABLED=false` disables the
+query-time vector request that the previous higher-tier index used.
 
 ## 12. Voice Live Flow
 
@@ -412,6 +451,8 @@ The backend keeps Voice Live credentials off the public browser.
 | `GET` | `/api/conversations/{id}` | Load one owned conversation |
 | `DELETE` | `/api/conversations/{id}` | Delete one owned conversation |
 | `POST` | `/api/rag` | Answer using Azure AI Search grounding |
+| `POST` | `/api/images/generate` | Generate an image from a text prompt |
+| `POST` | `/api/images/analyze` | Analyze an uploaded image |
 | `WS` | `/api/voice/live` | Voice Live browser proxy |
 | `GET` | `/api/memory/status` | Memory Store adapter status |
 | `GET` | `/api/memory/search` | Inspect scoped memories |
@@ -430,7 +471,15 @@ The backend keeps Voice Live credentials off the public browser.
 | `MEMORY_STORE_ENABLED` | `false` | Disable preview placeholder context |
 | `AUTH_CLIENT_ID` | `ead1d8be-064b-4e75-af9b-66ab0c28a954` | Microsoft account sign-in app |
 | `AUTH_REQUIRED` | `false` | Allow anonymous demo visitors |
-| `AZURE_SEARCH_ENDPOINT` | `https://mstech-demo-search.search.windows.net` | RAG Search endpoint |
+| `AZURE_SEARCH_ENDPOINT` | `https://mstech-demo-search-free.search.windows.net` | RAG Search endpoint |
+| `AZURE_SEARCH_KEY` | App setting secret | Free-tier Search data-plane authentication |
+| `AZURE_SEARCH_USE_MANAGED_IDENTITY` | `false` | Use Search key while Search runs on Free |
+| `AZURE_SEARCH_VECTOR_ENABLED` | `false` | Use lexical search for the free manual index |
+| `IMAGE_OPENAI_ENDPOINT` | `https://ms-tech-demo1-router-se.cognitiveservices.azure.com/` | Image generation account endpoint |
+| `IMAGE_GENERATION_MODEL` | `gpt-image-1-mini` | Image generation deployment |
+| `IMAGE_GENERATION_SIZE` | `1024x1024` | Demo image size |
+| `IMAGE_GENERATION_QUALITY` | `low` | Lower-cost demo image quality |
+| `IMAGE_UNDERSTANDING_MODEL` | `gpt-5.4-mini` | Vision-capable image analysis model |
 
 ## 15. Deployment and CI/CD
 
@@ -478,6 +527,9 @@ Validated on 2026-06-02:
 - Foundry conversation load returned both user and assistant messages.
 - Foundry conversation delete removed the isolated record.
 - An empty isolated scope returned an empty conversation list after deletion.
+- Image generation returned a base64 PNG from `gpt-image-1-mini`.
+- Image analysis route was deployed and rejects invalid/unsupported images with a
+  model error rather than a routing error.
 - Long-term Memory Store remained disabled.
 
 ## 17. Known Limitations
@@ -494,6 +546,8 @@ Validated on 2026-06-02:
 - Optional Microsoft authentication intentionally falls back to the anonymous
   browser scope when silent token acquisition or validation fails. This preserves
   demo availability but must be tightened before production authorization use.
+- Image module turns currently render in the active browser session. They are not
+  yet appended to Foundry Conversations.
 
 ## 18. Documentation Maintenance Rule
 

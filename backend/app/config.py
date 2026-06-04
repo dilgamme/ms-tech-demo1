@@ -41,9 +41,19 @@ class Settings(BaseSettings):
     # Azure AI Search / RAG
     AZURE_SEARCH_ENDPOINT: Optional[str] = None
     AZURE_SEARCH_KEY: Optional[str] = None
+    AZURE_SEARCH_USE_MANAGED_IDENTITY: Optional[bool] = None
+    AZURE_SEARCH_VECTOR_ENABLED: bool = True
     AZURE_SEARCH_INDEX: str = "rag-1779444354799"
     RAG_TOP_K: int = 5
     RAG_MODEL: Optional[str] = None
+
+    # Image generation and understanding
+    IMAGE_OPENAI_ENDPOINT: Optional[str] = None
+    IMAGE_OPENAI_KEY: Optional[str] = None
+    IMAGE_GENERATION_MODEL: str = "gpt-image-1-mini"
+    IMAGE_UNDERSTANDING_MODEL: Optional[str] = None
+    IMAGE_GENERATION_SIZE: str = "1024x1024"
+    IMAGE_GENERATION_QUALITY: str = "low"
     
     # API settings
     LOG_LEVEL: str = "INFO"

@@ -8,9 +8,11 @@ export const ChatInput = ({
   onToggleVoice,
   isRagMode,
   onToggleRag,
+  onImageSelected,
 }) => {
   const [input, setInput] = useState('')
   const inputRef = useRef(null)
+  const imageInputRef = useRef(null)
 
   useEffect(() => {
     inputRef.current?.focus()
@@ -22,6 +24,15 @@ export const ChatInput = ({
       onSend(input.trim())
       setInput('')
     }
+  }
+
+  const handleImageChange = (e) => {
+    const file = e.target.files?.[0]
+    if (file && onImageSelected) {
+      onImageSelected(file, input.trim())
+      setInput('')
+    }
+    e.target.value = ''
   }
 
   const handleKeyDown = (e) => {
@@ -88,9 +99,10 @@ export const ChatInput = ({
               )}
               <button
                 type="button"
-                disabled
-                className="control-button-disabled"
-                title="Image upload coming later"
+                onClick={() => imageInputRef.current?.click()}
+                disabled={isLoading}
+                className="control-button"
+                title="Upload an image for recognition"
                 aria-label="Image upload"
               >
                 <svg viewBox="0 0 24 24" aria-hidden="true" className="h-4 w-4">
@@ -99,6 +111,13 @@ export const ChatInput = ({
                   <circle cx="9" cy="9" r="1.5" fill="currentColor" />
                 </svg>
               </button>
+              <input
+                ref={imageInputRef}
+                type="file"
+                accept="image/png,image/jpeg,image/webp"
+                className="hidden"
+                onChange={handleImageChange}
+              />
             </div>
 
             <button

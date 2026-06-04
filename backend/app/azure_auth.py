@@ -25,8 +25,23 @@ def get_openai_api_key():
     return settings.AZURE_OPENAI_KEY
 
 
+def get_cognitive_services_auth_headers(api_key: str | None = None) -> dict[str, str]:
+    if settings.USE_MANAGED_IDENTITY and not api_key:
+        token = get_azure_credential().get_token(COGNITIVE_SERVICES_SCOPE)
+        return {"Authorization": f"Bearer {token.token}"}
+    key = api_key or settings.AZURE_OPENAI_KEY
+    if not key:
+        raise ValueError("An Azure OpenAI key is required when managed identity is disabled")
+    return {"api-key": key}
+
+
 def get_search_auth_headers() -> dict[str, str]:
-    if settings.USE_MANAGED_IDENTITY:
+    use_managed_identity = (
+        settings.AZURE_SEARCH_USE_MANAGED_IDENTITY
+        if settings.AZURE_SEARCH_USE_MANAGED_IDENTITY is not None
+        else settings.USE_MANAGED_IDENTITY and not settings.AZURE_SEARCH_KEY
+    )
+    if use_managed_identity:
         token = get_azure_credential().get_token(SEARCH_SCOPE)
         return {"Authorization": f"Bearer {token.token}"}
     if not settings.AZURE_SEARCH_KEY:

@@ -1,9 +1,10 @@
 param location string = 'westeurope'
 param webAppName string = 'mstech-demo-router-api'
-param searchServiceName string = 'mstech-demo-search'
+param searchServiceName string = 'mstech-demo-search-free'
 param storageAccountName string = 'mstechdemoragstorage'
 param foundryAccountName string = 'ms-tech-demo-resource-we'
 param routerExperimentAccountName string = 'ms-tech-demo1-router-se'
+param enableSearchPrivateEndpoint bool = false
 
 resource webApp 'Microsoft.Web/sites@2023-12-01' existing = {
   name: webAppName
@@ -128,8 +129,8 @@ resource webAppPrivateEndpoint 'Microsoft.Network/privateEndpoints@2024-05-01' =
   }
 }
 
-resource searchPrivateEndpoint 'Microsoft.Network/privateEndpoints@2024-05-01' = {
-  name: 'pe-mstech-demo-search'
+resource searchPrivateEndpoint 'Microsoft.Network/privateEndpoints@2024-05-01' = if (enableSearchPrivateEndpoint) {
+  name: 'pe-mstech-demo-search-free'
   location: location
   properties: {
     subnet: {
@@ -137,7 +138,7 @@ resource searchPrivateEndpoint 'Microsoft.Network/privateEndpoints@2024-05-01' =
     }
     privateLinkServiceConnections: [
       {
-        name: 'pec-mstech-demo-search'
+        name: 'pec-mstech-demo-search-free'
         properties: {
           privateLinkServiceId: searchService.id
           groupIds: [
@@ -227,7 +228,7 @@ resource webAppPrivateDns 'Microsoft.Network/privateEndpoints/privateDnsZoneGrou
   }
 }
 
-resource searchPrivateDns 'Microsoft.Network/privateEndpoints/privateDnsZoneGroups@2024-05-01' = {
+resource searchPrivateDns 'Microsoft.Network/privateEndpoints/privateDnsZoneGroups@2024-05-01' = if (enableSearchPrivateEndpoint) {
   parent: searchPrivateEndpoint
   name: 'default'
   properties: {
@@ -311,7 +312,7 @@ resource routerExperimentPrivateDns 'Microsoft.Network/privateEndpoints/privateD
   }
 }
 
-resource searchStorageSharedPrivateLink 'Microsoft.Search/searchServices/sharedPrivateLinkResources@2025-05-01' = {
+resource searchStorageSharedPrivateLink 'Microsoft.Search/searchServices/sharedPrivateLinkResources@2025-05-01' = if (enableSearchPrivateEndpoint) {
   parent: searchService
   name: 'spl-mstech-demo-ragstorage-blob'
   properties: {
@@ -324,7 +325,7 @@ resource searchStorageSharedPrivateLink 'Microsoft.Search/searchServices/sharedP
 
 output vnetId string = vnet.id
 output appServicePrivateEndpointId string = webAppPrivateEndpoint.id
-output searchPrivateEndpointId string = searchPrivateEndpoint.id
+output searchPrivateEndpointId string = enableSearchPrivateEndpoint ? searchPrivateEndpoint.id : ''
 output storagePrivateEndpointId string = storagePrivateEndpoint.id
 output foundryPrivateEndpointId string = foundryPrivateEndpoint.id
 output routerExperimentPrivateEndpointId string = routerExperimentPrivateEndpoint.id

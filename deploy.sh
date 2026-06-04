@@ -54,10 +54,17 @@ az webapp config appsettings set \
     MEMORY_STORE_NAME="ms-tech-demo-memory" \
     MEMORY_STORE_CHAT_MODEL="gpt-5.4-mini" \
     MEMORY_STORE_EMBEDDING_MODEL="text-embedding-3-small" \
-    AZURE_SEARCH_ENDPOINT="https://mstech-demo-search.search.windows.net" \
+    AZURE_SEARCH_ENDPOINT="https://mstech-demo-search-free.search.windows.net" \
+    AZURE_SEARCH_USE_MANAGED_IDENTITY="false" \
+    AZURE_SEARCH_VECTOR_ENABLED="false" \
     AZURE_SEARCH_INDEX="rag-1779444354799" \
     RAG_MODEL="gpt-5.4-mini" \
     RAG_TOP_K="5" \
+    IMAGE_OPENAI_ENDPOINT="https://ms-tech-demo1-router-se.cognitiveservices.azure.com/" \
+    IMAGE_GENERATION_MODEL="gpt-image-1-mini" \
+    IMAGE_GENERATION_SIZE="1024x1024" \
+    IMAGE_GENERATION_QUALITY="low" \
+    IMAGE_UNDERSTANDING_MODEL="gpt-5.4-mini" \
     WEBSITE_RUN_FROM_PACKAGE="1" \
     --no-wait
 

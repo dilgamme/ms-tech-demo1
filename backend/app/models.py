@@ -31,5 +31,23 @@ class RagResponse(BaseModel):
     indexUsed: str = Field(..., description="Azure AI Search index used")
     sources: List[RagSource] = Field(default_factory=list, description="Retrieved source chunks")
 
+class ImageGenerationRequest(BaseModel):
+    prompt: str = Field(..., min_length=1, description="Image generation prompt")
+
+class ImageGenerationResponse(BaseModel):
+    answer: str = Field(..., description="Short assistant message")
+    modelUsed: str = Field(..., description="Image generation model deployment")
+    reason: str = Field(..., description="Routing reason")
+    imageDataUrl: str = Field(..., description="Generated image as a data URL")
+
+class ImageAnalysisRequest(BaseModel):
+    prompt: str = Field(default="Describe this image.", description="Question or instruction about the image")
+    imageDataUrl: str = Field(..., description="Uploaded image as a data URL")
+
+class ImageAnalysisResponse(BaseModel):
+    answer: str = Field(..., description="Model response about the image")
+    modelUsed: str = Field(..., description="Vision-capable model deployment")
+    reason: str = Field(..., description="Routing reason")
+
 class ErrorResponse(BaseModel):
     detail: str = Field(..., description="Error description")

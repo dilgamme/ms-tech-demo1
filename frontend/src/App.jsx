@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useIsAuthenticated, useMsal } from '@azure/msal-react'
 import { loginRequest, msalEnabled } from './auth'
-import { deleteConversation, getConversation, listConversations, ragPrompt, routePrompt } from './services/api'
+import { analyzeImage, deleteConversation, generateImage, getConversation, listConversations, ragPrompt, routePrompt } from './services/api'
 import { createPcmPlayer, createPcmRecorder, createVoiceLiveSocket } from './services/voiceLive'
 import { MessageList } from './components/MessageList'
 import { ChatInput } from './components/ChatInput'
@@ -13,6 +13,19 @@ const VOICE_MODEL = 'Azure-Speech-Voice-Live'
 const VOICE_REASON = 'Microphone input -> Voice Live realtime session'
 
 const createMessageId = () => `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`
+
+const isImageGenerationPrompt = (prompt = '') => (
+  /\b(create|generate|draw|make|design|illustrate)\b.*\b(image|picture|photo|logo|poster|diagram|illustration)\b/i.test(prompt)
+  || /^\s*(create|generate|draw|make|design|illustrate)\b/i.test(prompt)
+  || /\b(image|picture|photo|logo|poster|diagram|illustration)\b.*\b(of|showing|with)\b/i.test(prompt)
+)
+
+const readImageAsDataUrl = (file) => new Promise((resolve, reject) => {
+  const reader = new FileReader()
+  reader.onload = () => resolve(reader.result)
+  reader.onerror = () => reject(reader.error)
+  reader.readAsDataURL(file)
+})
 
 const extractUsageMetrics = (payload) => {
   const usage = payload?.response?.usage || payload?.usage
@@ -96,6 +109,8 @@ function App() {
       let response
       if (isRagMode) {
         response = await ragPrompt(prompt, 5)
+      } else if (isImageGenerationPrompt(prompt)) {
+        response = await generateImage(prompt)
       } else {
         const contextMessages = messages.slice(-MAX_CONTEXT_MESSAGES).map(msg => ({
           role: msg.role,
@@ -107,6 +122,7 @@ function App() {
         id: createMessageId(),
         role: 'assistant',
         content: response.answer,
+        imageDataUrl: response.imageDataUrl,
         modelUsed: response.modelUsed,
         reason: response.reason || (isRagMode ? `RAG: Azure AI Search index ${response.indexUsed}` : undefined),
         metrics: response.metrics,
@@ -124,6 +140,39 @@ function App() {
         content: `Error: ${error.response?.data?.detail || error.message || 'Failed to get response'}`,
       }
       setMessages(prev => [...prev, errorMessage])
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleImageSelected = async (file, prompt) => {
+    if (!file || isLoading) {
+      return
+    }
+    const question = prompt || 'Describe this image and call out important details.'
+    setIsLoading(true)
+    try {
+      const imageDataUrl = await readImageAsDataUrl(file)
+      setMessages(prev => [...prev, {
+        id: createMessageId(),
+        role: 'user',
+        content: question,
+        imageDataUrl,
+      }])
+      const response = await analyzeImage(question, imageDataUrl)
+      setMessages(prev => [...prev, {
+        id: createMessageId(),
+        role: 'assistant',
+        content: response.answer,
+        modelUsed: response.modelUsed,
+        reason: response.reason,
+      }])
+    } catch (error) {
+      setMessages(prev => [...prev, {
+        id: createMessageId(),
+        role: 'assistant',
+        content: `Error: ${error.response?.data?.detail || error.message || 'Image analysis failed'}`,
+      }])
     } finally {
       setIsLoading(false)
     }
@@ -638,6 +687,7 @@ function App() {
         onToggleVoice={startVoiceSession}
         isRagMode={isRagMode}
         onToggleRag={() => setIsRagMode(prev => !prev)}
+        onImageSelected={handleImageSelected}
       />
     </div>
   )

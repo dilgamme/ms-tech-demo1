@@ -55,8 +55,10 @@ class RagService:
         payload = {
             "search": question,
             "top": top_k,
-            "select": "title,chunk",
-            "vectorQueries": [
+            "select": "title,chunk"
+        }
+        if settings.AZURE_SEARCH_VECTOR_ENABLED:
+            payload["vectorQueries"] = [
                 {
                     "kind": "text",
                     "text": question,
@@ -64,7 +66,6 @@ class RagService:
                     "k": top_k
                 }
             ]
-        }
         data = await self._post_search(payload)
         results = []
         for item in data.get("value", []):
