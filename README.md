@@ -5,6 +5,7 @@ Production-ready demo showcasing enterprise multi-model AI architecture with int
 ## 🎯 Features
 
 - **Hybrid Multi-Model Routing**: Deterministic special-case routes plus the managed Foundry model-router for general interactive prompts
+- **Azure AI Translator**: Deterministic text translation with language detection and DeepSeek fallback
 - **Intent Classification**: GPT-5-mini classifier handles prompts that do not match deterministic routing rules
 - **React Frontend**: Modern chat UI with Microsoft Foundry conversation history
 - **FastAPI Backend**: High-performance Python backend with CORS support
@@ -32,7 +33,8 @@ Production-ready demo showcasing enterprise multi-model AI architecture with int
 ┌─────────────────────┐
 │ Azure AI Foundry    │
 ├─────────────────────┤
-│ • DeepSeek-V4       │ (translation/summary)
+│ • Azure Translator  │ (translation)
+│ • DeepSeek-V4       │ (summary/translation fallback)
 │ • GPT-5-mini        │ (realtime/fallback)
 │ • GPT-5-Pro         │ (explicit deep reasoning)
 │ • model-router      │ (general interactive prompts)
@@ -192,6 +194,10 @@ MEMORY_STORE_EMBEDDING_MODEL=text-embedding-3-small
 VOICE_LIVE_ENDPOINT=https://your-foundry-resource.services.ai.azure.com/
 VOICE_LIVE_MODEL=gpt-4o
 VOICE_LIVE_API_VERSION=2025-10-01
+TRANSLATOR_ENABLED=true
+TRANSLATOR_ENDPOINT=https://your-foundry-resource.cognitiveservices.azure.com/
+TRANSLATOR_REGION=westeurope
+TRANSLATOR_API_VERSION=3.0
 FRONTEND_URL=https://orange-hill-0db554803.7.azurestaticapps.net
 ```
 
@@ -199,6 +205,8 @@ FRONTEND_URL=https://orange-hill-0db554803.7.azurestaticapps.net
 Use `MEMORY_STORE_ENABLED=false` until the target project returns persisted memories
 rather than preview placeholder content.
 `VOICE_LIVE_ENDPOINT` should use the Foundry resource host for Voice Live sessions.
+`TRANSLATOR_ENDPOINT` uses the Azure AI Services custom domain. Production traffic
+reaches it through App Service VNet integration and the resource private endpoint.
 
 **Frontend (.env.local):**
 ```

@@ -131,7 +131,8 @@ function App() {
       setMessages(prev => [...prev, assistantMessage])
       if (response.conversationId) {
         setActiveConversationId(response.conversationId)
-        await refreshConversations()
+        setIsLoading(false)
+        refreshConversations()
       }
     } catch (error) {
       const errorMessage = {

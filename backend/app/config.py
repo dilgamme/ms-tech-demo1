@@ -39,6 +39,14 @@ class Settings(BaseSettings):
     VOICE_LIVE_API_VERSION: str = "2025-10-01"
     VOICE_LIVE_TOKEN_SCOPE: Optional[str] = None
 
+    # Azure AI Translator
+    TRANSLATOR_ENABLED: bool = False
+    TRANSLATOR_ENDPOINT: Optional[str] = None
+    TRANSLATOR_KEY: Optional[str] = None
+    TRANSLATOR_REGION: Optional[str] = None
+    TRANSLATOR_API_VERSION: str = "3.0"
+    TRANSLATOR_TIMEOUT_SECONDS: int = 15
+
     # Azure AI Search / RAG
     AZURE_SEARCH_ENDPOINT: Optional[str] = None
     AZURE_SEARCH_KEY: Optional[str] = None

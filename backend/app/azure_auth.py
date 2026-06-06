@@ -62,6 +62,21 @@ def get_voice_live_auth_headers() -> dict[str, str]:
     return {"api-key": settings.VOICE_LIVE_KEY}
 
 
+def get_translator_auth_headers() -> dict[str, str]:
+    if settings.USE_MANAGED_IDENTITY:
+        token = get_azure_credential().get_token(COGNITIVE_SERVICES_SCOPE)
+        headers = {"Authorization": f"Bearer {token.token}"}
+    else:
+        key = settings.TRANSLATOR_KEY or settings.AZURE_OPENAI_KEY
+        if not key:
+            raise ValueError("TRANSLATOR_KEY is required when managed identity is disabled")
+        headers = {"Ocp-Apim-Subscription-Key": key}
+
+    if settings.TRANSLATOR_REGION:
+        headers["Ocp-Apim-Subscription-Region"] = settings.TRANSLATOR_REGION
+    return headers
+
+
 def get_foundry_auth_headers() -> dict[str, str]:
     token = get_azure_credential().get_token(FOUNDRY_SCOPE)
     return {"Authorization": f"Bearer {token.token}"}

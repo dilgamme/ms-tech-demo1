@@ -7,6 +7,7 @@ from app.azure_auth import get_openai_api_key
 from app.config import settings
 from app.models import RoutingResponse
 from app.realtime_data import build_realtime_context, direct_realtime_answer
+from app.translation_service import TranslationService, resolve_translation_request
 
 logger = logging.getLogger(__name__)
 
@@ -125,6 +126,7 @@ class ModelRouter:
         self.router_model = settings.ROUTER_MODEL
         self.reasoning_model = settings.REASONING_MODEL
         self.foundry_router_model = settings.FOUNDRY_ROUTER_MODEL
+        self.translation_service = TranslationService() if settings.TRANSLATOR_ENABLED else None
         self.foundry_router_client = None
         if settings.FOUNDRY_ROUTER_ENDPOINT:
             foundry_router_endpoint = settings.FOUNDRY_ROUTER_ENDPOINT.rstrip("/")
@@ -156,6 +158,38 @@ class ModelRouter:
                 intent_classification = await self._classify_intent(prompt)
             
             route = intent_classification["route"]
+
+            if intent_classification.get("intent") == "translation":
+                translation_request = resolve_translation_request(prompt, messages)
+                if self.translation_service and translation_request:
+                    try:
+                        result = await self.translation_service.translate(translation_request)
+                        source_detail = (
+                            f", detected source {result.detected_language}"
+                            if result.detected_language
+                            else ""
+                        )
+                        return RoutingResponse(
+                            modelUsed="Azure-AI-Translator",
+                            reason=(
+                                f"Translation service: text → {translation_request.target_language_name}"
+                                f"{source_detail}"
+                            ),
+                            answer=result.text,
+                        )
+                    except Exception as translator_error:
+                        logger.warning(
+                            "Azure AI Translator fallback to DeepSeek after %s: %s",
+                            type(translator_error).__name__,
+                            translator_error,
+                        )
+                        intent_classification["reason"] = (
+                            "Azure AI Translator unavailable, fallback → DeepSeek"
+                        )
+                elif self.translation_service:
+                    intent_classification["reason"] = (
+                        "Translation request was ambiguous, fallback → DeepSeek"
+                    )
 
             if route == "reasoning":
                 try:
@@ -253,7 +287,7 @@ class ModelRouter:
         if self._contains_any(text, TRANSLATION_PATTERNS):
             return {
                 "route": "deepseek",
-                "reason": "Rule match: translation → DeepSeek",
+                "reason": "Rule match: translation → Azure AI Translator",
                 "intent": "translation",
                 "confidence": 0.95
             }
@@ -311,7 +345,7 @@ class ModelRouter:
     async def _classify_intent(self, prompt: str) -> dict:
         """
         Classify prompt intent:
-        - Translation → DeepSeek (fast, cheap)
+        - Translation → Azure AI Translator, with DeepSeek fallback
         - Simple, real-time, and interactive analysis → GPT-5-mini
         - Explicit deep/pro requests → GPT-5-Pro
         """
@@ -328,7 +362,8 @@ Return one JSON object:
 }
 
 Rules:
-- Translation and short summaries: deepseek
+- Translation: deepseek (the application intercepts this intent and calls Azure AI Translator first)
+- Short summaries: deepseek
 - Simple factual questions, definitions, and brief explanations: router
 - Current/latest/real-time/live-data questions, including news, prices, weather, sports scores, recent events, or anything where freshness matters: router
 - Interactive analysis, architecture, planning, debugging, math/logic, code generation, code review, and optimization: router
@@ -372,7 +407,7 @@ Return only valid JSON."""
                 selected_route = "router"
             
             reason_map = {
-                "translation": "Classifier: translation → DeepSeek",
+                "translation": "Classifier: translation → Azure AI Translator",
                 "summary": "Classifier: summary → DeepSeek",
                 "simple": "Classifier: simple query → Foundry model-router",
                 "realtime": "Classifier: real-time/current data → GPT-5-mini",

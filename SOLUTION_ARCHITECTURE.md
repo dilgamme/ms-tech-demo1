@@ -1,6 +1,6 @@
 # MS Tech Demo Solution Architecture
 
-Last updated: 2026-06-04
+Last updated: 2026-06-06
 
 This is the living architecture document for the `ms-tech-demo1` solution. Update it
 whenever a feature changes the deployed architecture, security model, data flow,
@@ -19,6 +19,7 @@ The demo shows an Azure-native AI application architecture with:
 - Cost-optimized retrieval-augmented generation (RAG) using free-tier Azure AI
   Search with manual indexing.
 - Voice Live support through the backend WebSocket proxy.
+- Azure AI Translator routing for deterministic text translation.
 - Durable ChatGPT-style conversation history using the Microsoft Foundry
   Conversations API.
 - Image generation and image understanding modules.
@@ -36,6 +37,7 @@ The demo shows an Azure-native AI application architecture with:
 | Hybrid model routing | Active | Deterministic rules plus managed `model-router` |
 | RAG | Active | Free-tier Azure AI Search, manually indexed |
 | Voice Live | Active | Browser microphone proxied through App Service |
+| Text translation | Active | Azure AI Translator through the private AI Services endpoint |
 | Foundry Conversations API | Active | Replaces browser-stored chat history |
 | Image generation | Active | `gpt-image-1-mini` in Sweden Central |
 | Image understanding | Active | Uploaded images analyzed by `gpt-5.4-mini` |
@@ -471,6 +473,9 @@ The backend keeps Voice Live credentials off the public browser.
 | `MEMORY_STORE_ENABLED` | `false` | Disable preview placeholder context |
 | `VOICE_LIVE_ENDPOINT` | `https://ms-tech-demo-resource-we.services.ai.azure.com/` | Voice Live websocket endpoint |
 | `VOICE_LIVE_MODEL` | `gpt-4o` | Voice Live model available in West Europe |
+| `TRANSLATOR_ENABLED` | `true` | Route parseable translation requests to Azure AI Translator |
+| `TRANSLATOR_ENDPOINT` | `https://ms-tech-demo-resource-we.cognitiveservices.azure.com/` | Private Translator endpoint |
+| `TRANSLATOR_REGION` | `westeurope` | Translator resource region |
 | `AUTH_CLIENT_ID` | `ead1d8be-064b-4e75-af9b-66ab0c28a954` | Microsoft account sign-in app |
 | `AUTH_REQUIRED` | `false` | Allow anonymous demo visitors |
 | `AZURE_SEARCH_ENDPOINT` | `https://mstech-demo-search-free.search.windows.net` | RAG Search endpoint |
