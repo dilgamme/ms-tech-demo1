@@ -1,9 +1,11 @@
 import asyncio
+import inspect
 import json
 import logging
 from urllib.parse import urlencode
 
 import websockets
+from websockets.exceptions import ConnectionClosedError, InvalidHandshake
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
 from app.azure_auth import get_voice_live_auth_headers
@@ -25,6 +27,13 @@ def _voice_live_url() -> str:
         "model": settings.VOICE_LIVE_MODEL,
     })
     return f"{endpoint}/voice-live/realtime?{query}"
+
+
+def _websocket_header_kwargs(headers: dict[str, str]) -> dict:
+    connect_parameters = inspect.signature(websockets.connect).parameters
+    if "additional_headers" in connect_parameters:
+        return {"additional_headers": headers}
+    return {"extra_headers": headers}
 
 
 def _session_update_event() -> dict:
@@ -68,10 +77,12 @@ async def voice_live(websocket: WebSocket):
     await websocket.accept()
 
     azure_ws = None
+    azure_error_forwarded = False
     try:
+        logger.info("Opening Voice Live session to %s with model %s", _voice_live_url(), settings.VOICE_LIVE_MODEL)
         azure_ws = await websockets.connect(
             _voice_live_url(),
-            additional_headers=get_voice_live_auth_headers(),
+            **_websocket_header_kwargs(get_voice_live_auth_headers()),
             ping_interval=20,
             ping_timeout=20,
             max_size=8 * 1024 * 1024,
@@ -93,19 +104,50 @@ async def voice_live(websocket: WebSocket):
                 await azure_ws.send(message)
 
         async def azure_to_browser():
+            nonlocal azure_error_forwarded
             async for message in azure_ws:
+                try:
+                    azure_error_forwarded = json.loads(message).get("type") == "error"
+                except (json.JSONDecodeError, AttributeError):
+                    pass
                 await websocket.send_text(message)
 
         await asyncio.gather(browser_to_azure(), azure_to_browser())
 
     except WebSocketDisconnect:
         logger.info("Voice Live browser websocket disconnected")
+    except InvalidHandshake as exc:
+        status = getattr(exc, "status_code", None)
+        if status is None and hasattr(exc, "response"):
+            status = getattr(exc.response, "status_code", None)
+        logger.error("Voice Live connection rejected with status %s: %s", status or "unknown", exc, exc_info=True)
+        try:
+            await websocket.send_json({
+                "type": "voice.error",
+                "message": (
+                    "Voice Live connection was rejected"
+                    + (f" with status {status}" if status else "")
+                    + ". Check endpoint, managed identity roles, API key, model deployment, and region support."
+                ),
+            })
+        except Exception:
+            pass
+    except ConnectionClosedError as exc:
+        logger.error("Voice Live connection closed: code=%s reason=%s", exc.code, exc.reason, exc_info=True)
+        if not azure_error_forwarded:
+            try:
+                await websocket.send_json({
+                    "type": "voice.error",
+                    "message": f"Voice Live connection closed ({exc.code}): {exc.reason or 'no reason provided'}",
+                })
+            except Exception:
+                pass
     except Exception as exc:
         logger.error(f"Voice Live proxy error: {exc}", exc_info=True)
         try:
             await websocket.send_json({
                 "type": "voice.error",
-                "message": "Voice Live session failed. Check endpoint, authentication, model deployment, and region support.",
+                "message": f"Voice Live session failed: {exc}",
             })
         except Exception:
             pass

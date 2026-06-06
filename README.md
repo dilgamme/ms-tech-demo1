@@ -189,12 +189,16 @@ MEMORY_STORE_ENABLED=false
 MEMORY_STORE_NAME=ms-tech-demo-memory
 MEMORY_STORE_CHAT_MODEL=gpt-5.4-mini
 MEMORY_STORE_EMBEDDING_MODEL=text-embedding-3-small
+VOICE_LIVE_ENDPOINT=https://your-foundry-resource.services.ai.azure.com/
+VOICE_LIVE_MODEL=gpt-4o
+VOICE_LIVE_API_VERSION=2025-10-01
 FRONTEND_URL=https://orange-hill-0db554803.7.azurestaticapps.net
 ```
 
 `FOUNDRY_PROJECT_ENDPOINT` enables project APIs such as Foundry Conversations.
 Use `MEMORY_STORE_ENABLED=false` until the target project returns persisted memories
 rather than preview placeholder content.
+`VOICE_LIVE_ENDPOINT` should use the Foundry resource host for Voice Live sessions.
 
 **Frontend (.env.local):**
 ```

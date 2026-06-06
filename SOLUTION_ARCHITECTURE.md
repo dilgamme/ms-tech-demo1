@@ -469,6 +469,8 @@ The backend keeps Voice Live credentials off the public browser.
 | `FOUNDRY_PROJECT_ENDPOINT` | `https://ms-tech-demo-resource-we.services.ai.azure.com/api/projects/ms-tech-demo1` | Conversations and Memory Store API |
 | `FOUNDRY_CONVERSATIONS_ENABLED` | `true` | Persist server-side chat conversations |
 | `MEMORY_STORE_ENABLED` | `false` | Disable preview placeholder context |
+| `VOICE_LIVE_ENDPOINT` | `https://ms-tech-demo-resource-we.services.ai.azure.com/` | Voice Live websocket endpoint |
+| `VOICE_LIVE_MODEL` | `gpt-4o` | Voice Live model available in West Europe |
 | `AUTH_CLIENT_ID` | `ead1d8be-064b-4e75-af9b-66ab0c28a954` | Microsoft account sign-in app |
 | `AUTH_REQUIRED` | `false` | Allow anonymous demo visitors |
 | `AZURE_SEARCH_ENDPOINT` | `https://mstech-demo-search-free.search.windows.net` | RAG Search endpoint |

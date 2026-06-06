@@ -51,7 +51,11 @@ def get_search_auth_headers() -> dict[str, str]:
 
 def get_voice_live_auth_headers() -> dict[str, str]:
     if settings.USE_MANAGED_IDENTITY:
-        token = get_azure_credential().get_token(COGNITIVE_SERVICES_SCOPE)
+        endpoint = (settings.VOICE_LIVE_ENDPOINT or settings.AZURE_OPENAI_ENDPOINT).lower()
+        token_scope = settings.VOICE_LIVE_TOKEN_SCOPE or (
+            FOUNDRY_SCOPE if ".services.ai.azure.com" in endpoint else COGNITIVE_SERVICES_SCOPE
+        )
+        token = get_azure_credential().get_token(token_scope)
         return {"Authorization": f"Bearer {token.token}"}
     if not settings.VOICE_LIVE_KEY:
         raise ValueError("VOICE_LIVE_KEY is required when managed identity is disabled")

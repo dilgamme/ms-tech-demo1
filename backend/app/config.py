@@ -34,9 +34,10 @@ class Settings(BaseSettings):
     # Azure Voice Live
     VOICE_LIVE_ENDPOINT: Optional[str] = None
     VOICE_LIVE_KEY: Optional[str] = None
-    VOICE_LIVE_MODEL: str = "gpt-realtime"
+    VOICE_LIVE_MODEL: str = "gpt-4o"
     VOICE_LIVE_VOICE: str = "en-US-Ava:DragonHDLatestNeural"
     VOICE_LIVE_API_VERSION: str = "2025-10-01"
+    VOICE_LIVE_TOKEN_SCOPE: Optional[str] = None
 
     # Azure AI Search / RAG
     AZURE_SEARCH_ENDPOINT: Optional[str] = None

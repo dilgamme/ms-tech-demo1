@@ -49,6 +49,9 @@ az webapp config appsettings set \
     FOUNDRY_PROJECT_ENDPOINT="https://ms-tech-demo-resource-we.services.ai.azure.com/api/projects/ms-tech-demo1" \
     FOUNDRY_CONVERSATIONS_ENABLED="true" \
     MEMORY_STORE_ENABLED="false" \
+    VOICE_LIVE_ENDPOINT="https://ms-tech-demo-resource-we.services.ai.azure.com/" \
+    VOICE_LIVE_MODEL="gpt-4o" \
+    VOICE_LIVE_API_VERSION="2025-10-01" \
     AUTH_CLIENT_ID="ead1d8be-064b-4e75-af9b-66ab0c28a954" \
     AUTH_REQUIRED="false" \
     MEMORY_STORE_NAME="ms-tech-demo-memory" \
