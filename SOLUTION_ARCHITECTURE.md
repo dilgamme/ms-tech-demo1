@@ -518,6 +518,17 @@ Pushes to `main` trigger:
 The backend workflow:
 
 1. Installs Python requirements.
+2. Packages dependencies into `.python_packages/lib/site-packages`, explicitly
+   targeting `manylinux2014_x86_64`.
+3. Imports native identity dependencies from the packaged directory as a
+   deployment compatibility smoke test.
+
+`cryptography` is pinned to `46.0.3` because its `manylinux2014` wheel is
+compatible with the App Service Linux glibc runtime. On June 6, 2026, an
+unbounded upgrade to `48.0.0` produced a wheel requiring `GLIBC_2.33`; the
+GitHub deployment action succeeded, but the App Service process failed during
+`azure.identity` import. The package pin and workflow import check prevent that
+green-deployment/startup-failure mismatch.
 2. Installs App Service dependencies into `.python_packages/lib/site-packages`.
 3. Creates an explicit ZIP package so hidden dependencies are included.
 4. Deploys the ZIP to App Service.

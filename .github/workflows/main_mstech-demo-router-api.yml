@@ -25,7 +25,18 @@ jobs:
       run: cd backend && python -m pip install -r requirements.txt
 
     - name: Package dependencies for App Service
-      run: cd backend && python -m pip install -r requirements.txt --target .python_packages/lib/site-packages
+      run: >
+        cd backend &&
+        python -m pip install -r requirements.txt
+        --target .python_packages/lib/site-packages
+        --platform manylinux2014_x86_64
+        --implementation cp
+        --python-version 3.12
+        --abi cp312
+        --only-binary=:all:
+
+    - name: Verify packaged native dependencies
+      run: cd backend && PYTHONPATH=.python_packages/lib/site-packages python -c "from cryptography import x509; from azure.identity import DefaultAzureCredential"
 
     - name: Create App Service package
       run: cd backend && zip -r ../backend.zip . -x "venv/*" "__pycache__/*" "*.pyc"

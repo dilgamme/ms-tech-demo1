@@ -60,3 +60,11 @@ window to remove obsolete trailing chunks.
 - The application has no live write access to GitHub and cannot modify itself.
 - If private repository content is added later, replace public links and Search
   admin keys with an authenticated ingestion pipeline and least-privilege identity.
+
+## Deployment Compatibility
+
+The backend packages Linux dependencies in GitHub Actions before ZIP deployment.
+`cryptography==46.0.3` is pinned to a `manylinux2014`-compatible wheel, and CI
+imports `cryptography` plus `azure.identity` from the packaged directory before
+creating the deployment archive. This catches native glibc incompatibilities
+before App Service receives the package.
