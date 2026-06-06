@@ -392,11 +392,15 @@ lifecycle was validated successfully with real persisted records.
 
 ```mermaid
 flowchart LR
-    User[User question] --> UI[RAG toggle in UI]
-    UI --> API[POST /api/rag]
+    User[User question] --> UI[Chat UI]
+    UI --> Explicit[Optional RAG toggle<br/>POST /api/rag]
+    UI --> Router[POST /api/routePrompt]
+    Router -->|Self-knowledge question| API[Repository-grounded RAG]
+    Explicit --> API
     API --> Search[Azure AI Search Free<br/>manual lexical index]
     Manual[Manual indexing script<br/>scripts/manual_index_search.py] --> Search
     Docs[Selected .md/.txt files] --> Manual
+    Repo[Allowlisted repository docs and source] --> Manual
     Search --> API
     API --> Mini[gpt-5.4-mini]
     Mini --> API
@@ -419,10 +423,24 @@ export AZURE_SEARCH_ENDPOINT=https://mstech-demo-search-free.search.windows.net
 export AZURE_SEARCH_KEY=<search-admin-key>
 export AZURE_SEARCH_INDEX=rag-1779444354799
 python3 scripts/manual_index_search.py --create-index --docs-dir ./docs-to-index
+python3 scripts/manual_index_search.py --create-index --repo-root . \
+  --github-repository https://github.com/dilgamme/ms-tech-demo1
 ```
 
 The free-tier index is lexical. `AZURE_SEARCH_VECTOR_ENABLED=false` disables the
 query-time vector request that the previous higher-tier index used.
+
+Repository indexing is intentionally allowlisted. It includes the root architecture
+Markdown files, `backend/app`, `frontend/src`, `infra`, deployment workflows, and
+the dependency manifests needed to explain the application. It excludes `.env`
+files, Git metadata, virtual environments, package caches, generated bundles, and
+all other paths by default. This gives the assistant grounded knowledge of its
+implementation without granting live or unrestricted repository access.
+
+Prompts such as "How are you built?", "What models do you use?", and "Show me
+your architecture" automatically use this RAG path. If Search is unavailable or
+does not return repository context, routing falls back to the normal model path.
+Grounded answers return GitHub source links in the chat UI.
 
 ## 12. Voice Live Flow
 
@@ -482,6 +500,8 @@ The backend keeps Voice Live credentials off the public browser.
 | `AZURE_SEARCH_KEY` | App setting secret | Free-tier Search data-plane authentication |
 | `AZURE_SEARCH_USE_MANAGED_IDENTITY` | `false` | Use Search key while Search runs on Free |
 | `AZURE_SEARCH_VECTOR_ENABLED` | `false` | Use lexical search for the free manual index |
+| `SELF_KNOWLEDGE_RAG_ENABLED` | `true` | Automatically ground questions about this application in repository RAG |
+| `GITHUB_REPOSITORY_URL` | `https://github.com/dilgamme/ms-tech-demo1` | Repository base URL used in source citations |
 | `IMAGE_OPENAI_ENDPOINT` | `https://ms-tech-demo1-router-se.cognitiveservices.azure.com/` | Image generation account endpoint |
 | `IMAGE_GENERATION_MODEL` | `gpt-image-1-mini` | Image generation deployment |
 | `IMAGE_GENERATION_SIZE` | `1024x1024` | Demo image size |

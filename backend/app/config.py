@@ -55,6 +55,8 @@ class Settings(BaseSettings):
     AZURE_SEARCH_INDEX: str = "rag-1779444354799"
     RAG_TOP_K: int = 5
     RAG_MODEL: Optional[str] = None
+    SELF_KNOWLEDGE_RAG_ENABLED: bool = True
+    GITHUB_REPOSITORY_URL: str = "https://github.com/dilgamme/ms-tech-demo1"
 
     # Image generation and understanding
     IMAGE_OPENAI_ENDPOINT: Optional[str] = None

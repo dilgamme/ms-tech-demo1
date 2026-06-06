@@ -11,6 +11,7 @@ Production-ready demo showcasing enterprise multi-model AI architecture with int
 - **FastAPI Backend**: High-performance Python backend with CORS support
 - **Azure Deployment**: Static Web App + App Service with CI/CD pipelines
 - **Voice Live and RAG**: Microphone conversations and private Azure AI Search grounding
+- **Repository-Grounded Self Knowledge**: Architecture questions automatically use an allowlisted GitHub/Markdown RAG source
 - **Microsoft Account Sign-In**: Optional personal Microsoft and organizational Entra login
 - **Living Architecture Documentation**: Full deployed flow documented in [`SOLUTION_ARCHITECTURE.md`](SOLUTION_ARCHITECTURE.md)
 
@@ -45,6 +46,10 @@ Production-ready demo showcasing enterprise multi-model AI architecture with int
 For the complete deployed architecture, identity model, networking, routing,
 conversation persistence, RAG flow, Voice Live flow, settings, and operational
 notes, see [`SOLUTION_ARCHITECTURE.md`](SOLUTION_ARCHITECTURE.md).
+
+Questions such as "How are you built?" and "What Azure services do you use?"
+are automatically grounded in the indexed repository documentation and selected
+source files. Answers include links to the corresponding public GitHub files.
 
 ## 📋 Prerequisites
 

@@ -25,6 +25,48 @@ API_VERSION = "2024-07-01"
 DEFAULT_INDEX = "rag-1779444354799"
 CHUNK_CHARS = 1800
 CHUNK_OVERLAP = 200
+DEFAULT_GITHUB_REPOSITORY = "https://github.com/dilgamme/ms-tech-demo1"
+REPOSITORY_ROOT_FILES = {
+    "README.md",
+    "REPOSITORY_SELF_KNOWLEDGE.md",
+    "SOLUTION_ARCHITECTURE.md",
+    "AZURE_AI_TRANSLATOR.md",
+    "FOUNDRY_MIGRATION.md",
+    "deploy.sh",
+}
+REPOSITORY_ALLOWED_PREFIXES = (
+    "backend/app/",
+    "frontend/src/",
+    "infra/",
+    ".github/workflows/",
+)
+REPOSITORY_ALLOWED_FILES = {
+    "backend/requirements.txt",
+    "frontend/package.json",
+}
+REPOSITORY_ALLOWED_SUFFIXES = {
+    ".bicep",
+    ".css",
+    ".html",
+    ".js",
+    ".jsx",
+    ".json",
+    ".md",
+    ".py",
+    ".sh",
+    ".txt",
+    ".yaml",
+    ".yml",
+}
+REPOSITORY_EXCLUDED_PARTS = {
+    ".env",
+    ".git",
+    ".python_packages",
+    "__pycache__",
+    "dist",
+    "node_modules",
+    "venv",
+}
 
 
 def request(method: str, path: str, body: dict | None = None) -> dict:
@@ -94,6 +136,31 @@ def iter_source_files(docs_dir: pathlib.Path):
             yield path
 
 
+def iter_repository_files(repo_root: pathlib.Path):
+    paths = []
+    for current_root, dir_names, file_names in os.walk(repo_root):
+        dir_names[:] = sorted(
+            name
+            for name in dir_names
+            if name not in REPOSITORY_EXCLUDED_PARTS and not name.startswith(".env")
+        )
+        current_path = pathlib.Path(current_root)
+        for file_name in sorted(file_names):
+            path = current_path / file_name
+            relative = path.relative_to(repo_root)
+            relative_posix = relative.as_posix()
+            if file_name.startswith(".env") or path.suffix.lower() not in REPOSITORY_ALLOWED_SUFFIXES:
+                continue
+            allowed = (
+                relative_posix in REPOSITORY_ROOT_FILES
+                or relative_posix in REPOSITORY_ALLOWED_FILES
+                or any(relative_posix.startswith(prefix) for prefix in REPOSITORY_ALLOWED_PREFIXES)
+            )
+            if allowed:
+                paths.append(path)
+    yield from sorted(paths)
+
+
 def chunk_text(text: str) -> list[str]:
     normalized = "\n".join(line.rstrip() for line in text.splitlines()).strip()
     chunks: list[str] = []
@@ -107,30 +174,34 @@ def chunk_text(text: str) -> list[str]:
     return [chunk for chunk in chunks if chunk]
 
 
-def upload_documents(docs_dir: pathlib.Path) -> None:
-    if not docs_dir.exists():
-        raise SystemExit(f"Docs directory does not exist: {docs_dir}")
+def build_document_chunks(
+    path: pathlib.Path,
+    relative_path: pathlib.Path,
+    title: str,
+    source: str,
+    namespace: str,
+) -> list[dict]:
+    text = path.read_text(encoding="utf-8")
+    documents = []
+    for idx, chunk in enumerate(chunk_text(text), start=1):
+        digest = hashlib.sha256(
+            f"{namespace}:{relative_path.as_posix()}:{idx}".encode("utf-8")
+        ).hexdigest()[:32]
+        documents.append(
+            {
+                "@search.action": "mergeOrUpload",
+                "id": digest,
+                "title": title,
+                "chunk": f"Repository file: {relative_path.as_posix()}\n\n{chunk}",
+                "source": source,
+            }
+        )
+    return documents
 
-    docs = []
-    for path in iter_source_files(docs_dir):
-        text = path.read_text(encoding="utf-8")
-        title = path.stem.replace("-", " ").replace("_", " ").strip() or path.name
-        for idx, chunk in enumerate(chunk_text(text), start=1):
-            digest = hashlib.sha256(f"{path}:{idx}:{chunk}".encode("utf-8")).hexdigest()[:32]
-            docs.append(
-                {
-                    "@search.action": "mergeOrUpload",
-                    "id": digest,
-                    "title": title,
-                    "chunk": chunk,
-                    "source": str(path.relative_to(docs_dir)),
-                }
-            )
 
+def upload_chunks(docs: list[dict]) -> None:
     if not docs:
-        print(f"No .md or .txt files found under {docs_dir}")
         return
-
     name = urllib.parse.quote(index_name(), safe="")
     for start in range(0, len(docs), 500):
         batch = docs[start:start + 500]
@@ -138,11 +209,69 @@ def upload_documents(docs_dir: pathlib.Path) -> None:
         print(f"Uploaded {start + len(batch)} / {len(docs)} chunks")
 
 
+def upload_documents(docs_dir: pathlib.Path) -> None:
+    if not docs_dir.exists():
+        raise SystemExit(f"Docs directory does not exist: {docs_dir}")
+
+    docs = []
+    for path in iter_source_files(docs_dir):
+        relative_path = path.relative_to(docs_dir)
+        title = path.stem.replace("-", " ").replace("_", " ").strip() or path.name
+        docs.extend(
+            build_document_chunks(
+                path,
+                relative_path,
+                title,
+                relative_path.as_posix(),
+                "documents",
+            )
+        )
+
+    if not docs:
+        print(f"No .md or .txt files found under {docs_dir}")
+        return
+
+    upload_chunks(docs)
+
+
+def upload_repository(repo_root: pathlib.Path, github_repository: str) -> None:
+    if not repo_root.exists():
+        raise SystemExit(f"Repository directory does not exist: {repo_root}")
+
+    docs = []
+    github_base = github_repository.rstrip("/")
+    for path in iter_repository_files(repo_root):
+        relative_path = path.relative_to(repo_root)
+        relative_posix = relative_path.as_posix()
+        source_url = f"{github_base}/blob/main/{urllib.parse.quote(relative_posix)}"
+        docs.extend(
+            build_document_chunks(
+                path,
+                relative_path,
+                f"MS Tech Demo: {relative_posix}",
+                source_url,
+                "repository",
+            )
+        )
+
+    if not docs:
+        print(f"No allowlisted repository files found under {repo_root}")
+        return
+
+    upload_chunks(docs)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Manually manage the demo Azure AI Search index.")
     parser.add_argument("--delete-index", action="store_true", help="Delete the configured index before recreating it.")
     parser.add_argument("--create-index", action="store_true", help="Create or update the free-tier lexical index.")
     parser.add_argument("--docs-dir", type=pathlib.Path, help="Directory containing .md and .txt files to index.")
+    parser.add_argument("--repo-root", type=pathlib.Path, help="Repository root to index using the safe allowlist.")
+    parser.add_argument(
+        "--github-repository",
+        default=os.environ.get("GITHUB_REPOSITORY_URL", DEFAULT_GITHUB_REPOSITORY),
+        help="Public GitHub repository URL used for source citations.",
+    )
     args = parser.parse_args()
 
     if args.delete_index:
@@ -151,8 +280,10 @@ def main() -> None:
         create_index()
     if args.docs_dir:
         upload_documents(args.docs_dir)
-    if not args.delete_index and not args.create_index and not args.docs_dir:
-        parser.error("Specify --delete-index, --create-index, --docs-dir, or a combination.")
+    if args.repo_root:
+        upload_repository(args.repo_root, args.github_repository)
+    if not args.delete_index and not args.create_index and not args.docs_dir and not args.repo_root:
+        parser.error("Specify --delete-index, --create-index, --docs-dir, --repo-root, or a combination.")
 
 
 if __name__ == "__main__":

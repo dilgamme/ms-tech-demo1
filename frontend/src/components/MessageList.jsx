@@ -74,6 +74,16 @@ const SourceList = ({ sources }) => {
             <p className="mt-2 max-h-24 overflow-hidden text-sm leading-6 text-slate-400">
               {source.chunk}
             </p>
+            {source.source?.startsWith('http') && (
+              <a
+                href={source.source}
+                target="_blank"
+                rel="noreferrer"
+                className="mt-2 inline-block text-xs font-medium text-sky-400 hover:text-sky-300"
+              >
+                View on GitHub
+              </a>
+            )}
           </details>
         ))}
       </div>

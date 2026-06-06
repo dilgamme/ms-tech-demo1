@@ -6,6 +6,7 @@ from openai import OpenAI
 from app.azure_auth import get_openai_api_key
 from app.config import settings
 from app.models import RoutingResponse
+from app.rag_service import get_rag_service
 from app.realtime_data import build_realtime_context, direct_realtime_answer
 from app.translation_service import TranslationService, resolve_translation_request
 
@@ -105,6 +106,25 @@ REALTIME_PATTERNS = (
     "schedule",
 )
 
+SELF_KNOWLEDGE_PATTERNS = (
+    "how are you built",
+    "how were you built",
+    "how do you work",
+    "your architecture",
+    "your tech stack",
+    "your source code",
+    "your github",
+    "your repository",
+    "your repo",
+    "what models do you use",
+    "which models do you use",
+    "what azure services do you use",
+    "which azure services do you use",
+    "tell me about this app",
+    "how is this app built",
+    "how was this app built",
+)
+
 MAX_HISTORY_MESSAGES = 6
 MAX_MESSAGE_CHARS = 1200
 CLASSIFIER_TIMEOUT_SECONDS = 10
@@ -145,6 +165,27 @@ class ModelRouter:
         """
         
         try:
+            if (
+                settings.SELF_KNOWLEDGE_RAG_ENABLED
+                and settings.AZURE_SEARCH_ENDPOINT
+                and self._contains_any(prompt.strip().lower(), SELF_KNOWLEDGE_PATTERNS)
+            ):
+                try:
+                    rag_response = await get_rag_service().answer(prompt)
+                    if rag_response.sources:
+                        return RoutingResponse(
+                            modelUsed=f"Azure-AI-Search + {rag_response.modelUsed}",
+                            reason="Repository-grounded self knowledge",
+                            answer=rag_response.answer,
+                            sources=rag_response.sources,
+                        )
+                except Exception as rag_error:
+                    logger.warning(
+                        "Self-knowledge RAG fallback after %s: %s",
+                        type(rag_error).__name__,
+                        rag_error,
+                    )
+
             direct_answer = direct_realtime_answer(prompt)
             if direct_answer:
                 return RoutingResponse(

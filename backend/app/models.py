@@ -10,20 +10,22 @@ class RoutingRequest(BaseModel):
     messages: Optional[List[Message]] = Field(default=None, description="Chat history")
     conversationId: Optional[str] = Field(default=None, description="Foundry conversation ID")
 
+class RagSource(BaseModel):
+    title: str = Field(..., description="Source document title")
+    chunk: str = Field(..., description="Retrieved source chunk")
+    source: Optional[str] = Field(default=None, description="Source path or URL")
+    score: Optional[float] = Field(default=None, description="Search score")
+
 class RoutingResponse(BaseModel):
     modelUsed: str = Field(..., description="Name of the model used")
     reason: str = Field(..., description="Reason for routing to this model")
     answer: str = Field(..., description="The model's response")
     conversationId: Optional[str] = Field(default=None, description="Foundry conversation ID")
+    sources: List[RagSource] = Field(default_factory=list, description="Grounding sources, when used")
 
 class RagRequest(BaseModel):
     question: str = Field(..., description="Question to answer using indexed RAG documents")
     topK: Optional[int] = Field(default=None, ge=1, le=10, description="Number of chunks to retrieve")
-
-class RagSource(BaseModel):
-    title: str = Field(..., description="Source document title")
-    chunk: str = Field(..., description="Retrieved source chunk")
-    score: Optional[float] = Field(default=None, description="Search score")
 
 class RagResponse(BaseModel):
     answer: str = Field(..., description="Answer grounded in retrieved documents")
