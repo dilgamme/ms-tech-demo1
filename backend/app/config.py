@@ -14,6 +14,15 @@ class Settings(BaseSettings):
     FOUNDRY_ROUTER_ENDPOINT: Optional[str] = None
     FOUNDRY_ROUTER_MODEL: str = "model-router"
 
+    # Microsoft Foundry Web IQ / Azure OpenAI web search
+    WEB_IQ_ENABLED: bool = False
+    WEB_IQ_ENDPOINT: Optional[str] = None
+    WEB_IQ_MODEL: Optional[str] = None
+    WEB_IQ_SEARCH_CONTEXT_SIZE: str = "medium"
+    WEB_IQ_COUNTRY: Optional[str] = None
+    WEB_IQ_TIMEOUT_SECONDS: int = 45
+    WEB_IQ_MAX_SOURCES: int = 5
+
     # Microsoft Foundry Memory Store API
     FOUNDRY_PROJECT_ENDPOINT: Optional[str] = None
     FOUNDRY_CONVERSATIONS_ENABLED: bool = False

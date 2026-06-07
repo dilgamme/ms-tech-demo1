@@ -54,9 +54,13 @@ const SourceList = ({ sources }) => {
   const uniqueSources = sources
     .filter(source => source?.title)
     .filter((source, index, list) => (
-      list.findIndex(item => item.title === source.title && item.chunk === source.chunk) === index
+      list.findIndex(item => (
+        item.source
+          ? item.source === source.source
+          : item.title === source.title && item.chunk === source.chunk
+      )) === index
     ))
-    .slice(0, 3)
+    .slice(0, 5)
 
   if (!uniqueSources.length) {
     return null
@@ -81,7 +85,7 @@ const SourceList = ({ sources }) => {
                 rel="noreferrer"
                 className="mt-2 inline-block text-xs font-medium text-sky-400 hover:text-sky-300"
               >
-                View on GitHub
+                Open source
               </a>
             )}
           </details>

@@ -9,6 +9,7 @@ from app.models import RoutingResponse
 from app.rag_service import get_rag_service
 from app.realtime_data import build_realtime_context, direct_realtime_answer
 from app.translation_service import TranslationService, resolve_translation_request
+from app.web_iq_service import get_web_iq_service
 
 logger = logging.getLogger(__name__)
 
@@ -104,6 +105,14 @@ REALTIME_PATTERNS = (
     "score",
     "standings",
     "schedule",
+    "search the web",
+    "search online",
+    "look online",
+    "browse the web",
+    "find online",
+    "find images",
+    "find videos",
+    "web iq",
 )
 
 SELF_KNOWLEDGE_PATTERNS = (
@@ -254,6 +263,24 @@ class ModelRouter:
                     )
             if route == "router":
                 if intent_classification.get("intent") == "realtime":
+                    if settings.WEB_IQ_ENABLED:
+                        try:
+                            web_result = await get_web_iq_service().search(prompt, messages)
+                            return RoutingResponse(
+                                modelUsed=f"Web IQ + {web_result.model}",
+                                reason="Fresh public-web grounding via Azure OpenAI web search",
+                                answer=web_result.answer,
+                                sources=web_result.sources,
+                            )
+                        except Exception as web_iq_error:
+                            logger.warning(
+                                "Web IQ fallback to realtime providers after %s: %s",
+                                type(web_iq_error).__name__,
+                                web_iq_error,
+                            )
+                            intent_classification["reason"] = (
+                                "Web IQ unavailable, fallback to realtime providers"
+                            )
                     response = await self._call_router_model(prompt, messages)
                     model_used = self.router_model
                 else:
@@ -368,7 +395,7 @@ class ModelRouter:
         if self._contains_any(text, REALTIME_PATTERNS):
             return {
                 "route": "router",
-                "reason": "Rule match: real-time/current data → GPT-5-mini",
+                "reason": "Rule match: fresh web/current data → Web IQ",
                 "intent": "realtime",
                 "confidence": 0.9
             }

@@ -12,6 +12,7 @@ Production-ready demo showcasing enterprise multi-model AI architecture with int
 - **Azure Deployment**: Static Web App + App Service with CI/CD pipelines
 - **Voice Live and RAG**: Microphone conversations and Azure AI Search grounding
 - **Repository-Grounded Self Knowledge**: Architecture questions automatically use an allowlisted GitHub/Markdown RAG source
+- **Foundry Web IQ**: Fresh public-web grounding with cited pages and an existing realtime-provider fallback; see [`WEB_IQ.md`](WEB_IQ.md)
 - **Microsoft Account Sign-In**: Optional personal Microsoft and organizational Entra login
 - **Living Architecture Documentation**: Full deployed flow documented in [`SOLUTION_ARCHITECTURE.md`](SOLUTION_ARCHITECTURE.md)
 
@@ -37,6 +38,7 @@ Production-ready demo showcasing enterprise multi-model AI architecture with int
 │ • Azure Translator  │ (translation)
 │ • DeepSeek-V4       │ (summary/translation fallback)
 │ • GPT-5-mini        │ (realtime/fallback)
+│ • Web IQ web_search │ (fresh public-web answers)
 │ • GPT-5-Pro         │ (explicit deep reasoning)
 │ • model-router      │ (general interactive prompts)
 │ • Conversations API │ (durable chat history)
@@ -188,6 +190,10 @@ ROUTER_MODEL=gpt-5.4-mini
 REASONING_MODEL=gpt-5-pro-reasoning
 FOUNDRY_ROUTER_ENDPOINT=https://your-router-resource.cognitiveservices.azure.com/
 FOUNDRY_ROUTER_MODEL=model-router
+WEB_IQ_ENABLED=false
+WEB_IQ_ENDPOINT=https://your-responses-api-region.cognitiveservices.azure.com/
+WEB_IQ_MODEL=gpt-5.4-mini
+WEB_IQ_SEARCH_CONTEXT_SIZE=medium
 AUTH_CLIENT_ID=ead1d8be-064b-4e75-af9b-66ab0c28a954
 AUTH_REQUIRED=false
 FOUNDRY_PROJECT_ENDPOINT=https://your-foundry-resource.services.ai.azure.com/api/projects/your-project
@@ -213,6 +219,9 @@ rather than preview placeholder content.
 `TRANSLATOR_ENDPOINT` uses the Azure AI Services custom domain. During the
 temporary cost-saving period, production traffic reaches it over the public Azure
 HTTPS endpoint using managed identity or the configured service credential.
+`WEB_IQ_ENDPOINT` must be in an Azure region that supports the Responses API.
+See [`WEB_IQ.md`](WEB_IQ.md) for the current activation status, privacy boundary,
+cost behavior, and citation flow.
 
 **Frontend (.env.local):**
 ```
@@ -238,6 +247,7 @@ ms-tech-demo/
 │   │   ├── main.py              # FastAPI app
 │   │   ├── router/              # API routes
 │   │   ├── router_logic.py      # Routing logic
+│   │   ├── web_iq_service.py    # Web search and citation extraction
 │   │   ├── models.py            # Pydantic models
 │   │   └── config.py            # Configuration
 │   ├── requirements.txt
@@ -247,6 +257,7 @@ ms-tech-demo/
 ├── .github/workflows/            # CI/CD pipelines
 │   ├── deploy-frontend.yml
 │   └── deploy-backend.yml
+├── WEB_IQ.md                     # Web IQ implementation and operations
 └── README.md
 ```
 
