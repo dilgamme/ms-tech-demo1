@@ -1,6 +1,6 @@
 # MS Tech Demo Solution Architecture
 
-Last updated: 2026-06-06
+Last updated: 2026-06-07
 
 This is the living architecture document for the `ms-tech-demo1` solution. Update it
 whenever a feature changes the deployed architecture, security model, data flow,
@@ -11,7 +11,7 @@ configuration, operational behavior, or user experience.
 The demo shows an Azure-native AI application architecture with:
 
 - Public web delivery through Azure Static Web Apps.
-- A private-network-integrated Python API on Azure App Service.
+- A VNet-integrated Python API on Azure App Service.
 - Microsoft account sign-in with optional anonymous demo access.
 - Managed identity for Azure service-to-service authentication.
 - Hybrid multi-model routing with deterministic rules and the managed Microsoft
@@ -37,7 +37,7 @@ The demo shows an Azure-native AI application architecture with:
 | Hybrid model routing | Active | Deterministic rules plus managed `model-router` |
 | RAG | Active | Free-tier Azure AI Search, manually indexed |
 | Voice Live | Active | Browser microphone proxied through App Service |
-| Text translation | Active | Azure AI Translator through the private AI Services endpoint |
+| Text translation | Active | Azure AI Translator through the public AI Services endpoint |
 | Foundry Conversations API | Active | Replaces browser-stored chat history |
 | Image generation | Active | `gpt-image-1-mini` in Sweden Central |
 | Image understanding | Active | Uploaded images analyzed by `gpt-5.4-mini` |
@@ -60,11 +60,7 @@ flowchart TB
         end
 
         subgraph PESubnet["snet-private-endpoints"]
-            PEAPI[App Service private endpoint]
-            PESearch[AI Search private endpoint<br/>Disabled on Free tier]
-            PEBlob[Blob private endpoint]
-            PEFoundry[Foundry private endpoint]
-            PERouter[Router private endpoint]
+            Reserved[Reserved for future<br/>private endpoint restoration]
         end
     end
 
@@ -80,7 +76,7 @@ flowchart TB
         ImageGen[gpt-image-1-mini<br/>Image generation]
     end
 
-    subgraph RAG["Private RAG data path - West Europe"]
+    subgraph RAG["RAG data path - West Europe"]
         Search[Azure AI Search Free<br/>mstech-demo-search-free]
         Blob[Blob Storage<br/>mstechdemoragstorage]
     end
@@ -93,19 +89,16 @@ flowchart TB
     Entra -. optional access token .-> SWA
     SWA -->|HTTPS API calls<br/>optional bearer token| API
 
-    PEAPI --- API
-    API -->|Managed identity + private DNS| PEFoundry
-    PEFoundry --> Project
+    API -->|Managed identity over public HTTPS| Project
     Project --> Models
     Project --> Conversations
     Project -. disabled preview path .-> Memory
 
-    API -->|Managed identity + private DNS| PERouter
-    PERouter --> Router
-    PERouter --> ImageGen
+    API -->|Managed identity over public HTTPS| Router
+    API -->|Managed identity over public HTTPS| ImageGen
 
     API -->|API key over HTTPS<br/>Free tier public endpoint| Search
-    Search -. no native indexer on Free/private Blob path .-> Blob
+    Search -. manual indexing .-> Blob
 
     API -. telemetry .-> Insights
     API -. foundation for secrets .-> KV
@@ -114,15 +107,15 @@ flowchart TB
     classDef private fill:#dcfce7,stroke:#16a34a,color:#14532d
     classDef disabled fill:#f3f4f6,stroke:#6b7280,color:#374151,stroke-dasharray: 5 5
     class User,SWA,Entra public
-    class API,PEAPI,PESearch,PEBlob,PEFoundry,PERouter,Project,Models,Conversations,Router,ImageGen,Search,Blob,KV,Insights private
-    class Memory,PESearch disabled
+    class API,Reserved,Project,Models,Conversations,Router,ImageGen,Search,Blob,KV,Insights private
+    class Memory disabled
 ```
 
-The Static Web App remains public by design. Backend-to-Azure service traffic uses
-private networking where supported. Public access is disabled for private backend
-resources except Azure AI Search, which currently uses the Free tier for cost
-control. Free-tier Azure AI Search does not support private endpoints or managed
-identity data-plane authorization, so RAG uses a Search key and manual indexing.
+The Static Web App and backend service endpoints are currently public by design for
+temporary cost control. Managed identity, service authentication, HTTPS, and user
+authentication remain active. The VNet and subnets are retained, but all private
+endpoints and private DNS zones were removed on June 7, 2026. See
+`PRIVATE_ENDPOINT_RESTORE.md` for reconstruction details.
 Solid arrows show active request or data paths. Dotted arrows show optional,
 supporting, or currently disabled paths.
 
@@ -135,7 +128,7 @@ Primary resource group: `rg-ms-tech-demo1`
 | Azure Static Web App | `mstech-demo-ui` | West Europe | Public React frontend |
 | App Service plan | `plan-mstech-demo` | West Europe | Linux hosting plan |
 | App Service | `mstech-demo-router-api` | West Europe | Python FastAPI backend |
-| Virtual network | `vnet-mstech-demo` | West Europe | Private service connectivity |
+| Virtual network | `vnet-mstech-demo` | West Europe | Retained App Service integration and future private connectivity |
 | Blob Storage account | `mstechdemoragstorage` | West Europe | RAG source documents |
 | Azure AI Search | `mstech-demo-search-free` | West Europe | Free-tier RAG index and retrieval |
 | Key Vault | `kv-mstech-demo` | West Europe | Secret-management foundation |
@@ -159,34 +152,26 @@ The VNet uses:
 | Subnet | Address space | Purpose |
 |--------|---------------|---------|
 | `snet-appservice-integration` | `10.42.1.0/24` | App Service outbound VNet integration |
-| `snet-private-endpoints` | `10.42.2.0/24` | Private endpoints |
+| `snet-private-endpoints` | `10.42.2.0/24` | Reserved for private endpoint restoration |
 
-Private endpoints:
-
-| Endpoint | Target |
-|----------|--------|
-| `pe-mstech-demo-router-api` | App Service |
-| `pe-mstech-demo-search-free` | Azure AI Search; disabled while Search uses the Free tier |
-| `pe-mstech-demo-ragstorage-blob` | Blob Storage |
-| `pe-mstech-demo-foundry` | West Europe Foundry AIServices account |
-| `pe-ms-tech-demo1-router-se` | Sweden Central router AIServices account |
-
-Private DNS zones linked to `vnet-mstech-demo`:
+Current private endpoints:
 
 ```text
-privatelink.azurewebsites.net
-privatelink.search.windows.net
-privatelink.blob.core.windows.net
-privatelink.cognitiveservices.azure.com
-privatelink.openai.azure.com
-privatelink.services.ai.azure.com
+None
 ```
 
-Azure AI Search private endpoint and shared private link are disabled while Search
-uses the Free tier. Free-tier Search does not support private endpoints. Because
-Blob Storage remains private, document ingestion is manual: selected `.md` and
-`.txt` files are pushed directly into the Search index with
-`scripts/manual_index_search.py`.
+Current private DNS zones linked to `vnet-mstech-demo`:
+
+```text
+None
+```
+
+The resources were removed on June 7, 2026 for temporary cost savings. Public
+network access is enabled for the active Foundry account, router account, Blob
+Storage, App Service, and Free-tier Search. Document ingestion remains manual:
+selected repository and document chunks are pushed directly into Search with
+`scripts/manual_index_search.py`. The VNet and subnets remain available for the
+future rebuild documented in `PRIVATE_ENDPOINT_RESTORE.md`.
 
 ## 6. Identity and Access
 
@@ -275,7 +260,8 @@ Foundry AIServices account: `ms-tech-demo1-router-se`
 | `model-router` | `2025-11-18` | `GlobalStandard` | 10 |
 | `gpt-image-1-mini` | `2025-10-06` | `GlobalStandard` | 1 |
 
-The router/image account is private-networked and public network access is disabled.
+The router/image account currently uses its public Azure HTTPS endpoint. Managed
+identity and service authentication remain enabled.
 
 ### 7.3 Image Modules
 
@@ -492,7 +478,7 @@ The backend keeps Voice Live credentials off the public browser.
 | `VOICE_LIVE_ENDPOINT` | `https://ms-tech-demo-resource-we.services.ai.azure.com/` | Voice Live websocket endpoint |
 | `VOICE_LIVE_MODEL` | `gpt-4o` | Voice Live model available in West Europe |
 | `TRANSLATOR_ENABLED` | `true` | Route parseable translation requests to Azure AI Translator |
-| `TRANSLATOR_ENDPOINT` | `https://ms-tech-demo-resource-we.cognitiveservices.azure.com/` | Private Translator endpoint |
+| `TRANSLATOR_ENDPOINT` | `https://ms-tech-demo-resource-we.cognitiveservices.azure.com/` | Public Translator endpoint during cost-saving period |
 | `TRANSLATOR_REGION` | `westeurope` | Translator resource region |
 | `AUTH_CLIENT_ID` | `ead1d8be-064b-4e75-af9b-66ab0c28a954` | Microsoft account sign-in app |
 | `AUTH_REQUIRED` | `false` | Allow anonymous demo visitors |

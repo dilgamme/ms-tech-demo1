@@ -10,7 +10,7 @@ Production-ready demo showcasing enterprise multi-model AI architecture with int
 - **React Frontend**: Modern chat UI with Microsoft Foundry conversation history
 - **FastAPI Backend**: High-performance Python backend with CORS support
 - **Azure Deployment**: Static Web App + App Service with CI/CD pipelines
-- **Voice Live and RAG**: Microphone conversations and private Azure AI Search grounding
+- **Voice Live and RAG**: Microphone conversations and Azure AI Search grounding
 - **Repository-Grounded Self Knowledge**: Architecture questions automatically use an allowlisted GitHub/Markdown RAG source
 - **Microsoft Account Sign-In**: Optional personal Microsoft and organizational Entra login
 - **Living Architecture Documentation**: Full deployed flow documented in [`SOLUTION_ARCHITECTURE.md`](SOLUTION_ARCHITECTURE.md)
@@ -29,7 +29,7 @@ Production-ready demo showcasing enterprise multi-model AI architecture with int
 │  App Service        │
 │  Python 3.12        │
 └──────────┬──────────┘
-           │ Managed identity + private networking
+           │ Managed identity + public Azure HTTPS endpoints
            ▼
 ┌─────────────────────┐
 │ Azure AI Foundry    │
@@ -210,8 +210,9 @@ FRONTEND_URL=https://orange-hill-0db554803.7.azurestaticapps.net
 Use `MEMORY_STORE_ENABLED=false` until the target project returns persisted memories
 rather than preview placeholder content.
 `VOICE_LIVE_ENDPOINT` should use the Foundry resource host for Voice Live sessions.
-`TRANSLATOR_ENDPOINT` uses the Azure AI Services custom domain. Production traffic
-reaches it through App Service VNet integration and the resource private endpoint.
+`TRANSLATOR_ENDPOINT` uses the Azure AI Services custom domain. During the
+temporary cost-saving period, production traffic reaches it over the public Azure
+HTTPS endpoint using managed identity or the configured service credential.
 
 **Frontend (.env.local):**
 ```

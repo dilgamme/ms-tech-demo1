@@ -1,11 +1,18 @@
 # Private Data Plane
 
+Private endpoints are temporarily disabled as of June 7, 2026 to reduce demo
+costs. The VNet, App Service integration subnet, and private endpoint subnet remain
+in place so the private data plane can be restored later.
+
+Deploying `private-network.bicep` does not recreate private endpoints unless
+`enablePrivateEndpoints=true` is explicitly supplied.
+
 The public Static Web App remains internet-accessible. The App Service also keeps
 public inbound access because browser-hosted JavaScript calls it directly.
 App Service WebSockets remain enabled for Voice Live connections from the
 public frontend.
 
-Private endpoints and DNS are configured for:
+When enabled, private endpoints and DNS are configured for:
 
 - App Service
 - Blob Storage
@@ -16,13 +23,13 @@ Azure AI Search private endpoint deployment is optional in
 on the Free tier for the demo. Free-tier Azure AI Search does not support private
 endpoints or managed identity data-plane authorization.
 
-App Service uses VNet integration for outbound traffic. Blob Storage remains
-private. The free Search service uses its public HTTPS endpoint with a Search key,
-and indexing is performed manually by pushing document chunks into the index.
+App Service retains VNet integration for outbound traffic. Blob Storage and the
+free Search service currently use public HTTPS endpoints, and indexing is
+performed manually by pushing document chunks into the Search index.
 
-Public network access is disabled for Blob Storage and private backend resources
-where supported. Azure AI Search is the cost-saving exception while it stays on
-the Free tier.
+During the temporary public-network period, public network access is enabled for
+the active Foundry account, router account, and Blob Storage. Managed identity,
+service authentication, application authentication, and HTTPS remain active.
 
 If Search is moved back to Basic or higher, set `enableSearchPrivateEndpoint=true`
 when deploying `private-network.bicep`, approve the Search-managed Blob Storage

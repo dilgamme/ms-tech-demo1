@@ -4,6 +4,7 @@ param searchServiceName string = 'mstech-demo-search-free'
 param storageAccountName string = 'mstechdemoragstorage'
 param foundryAccountName string = 'ms-tech-demo-resource-we'
 param routerExperimentAccountName string = 'ms-tech-demo1-router-se'
+param enablePrivateEndpoints bool = false
 param enableSearchPrivateEndpoint bool = false
 
 resource webApp 'Microsoft.Web/sites@2023-12-01' existing = {
@@ -90,12 +91,12 @@ var privateDnsZoneNames = [
   'privatelink.services.ai.azure.com'
 ]
 
-resource privateDnsZones 'Microsoft.Network/privateDnsZones@2024-06-01' = [for zoneName in privateDnsZoneNames: {
+resource privateDnsZones 'Microsoft.Network/privateDnsZones@2024-06-01' = [for zoneName in privateDnsZoneNames: if (enablePrivateEndpoints) {
   name: zoneName
   location: 'global'
 }]
 
-resource privateDnsLinks 'Microsoft.Network/privateDnsZones/virtualNetworkLinks@2024-06-01' = [for (zoneName, index) in privateDnsZoneNames: {
+resource privateDnsLinks 'Microsoft.Network/privateDnsZones/virtualNetworkLinks@2024-06-01' = [for (zoneName, index) in privateDnsZoneNames: if (enablePrivateEndpoints) {
   parent: privateDnsZones[index]
   name: 'link-vnet-mstech-demo-${replace(zoneName, '.', '-')}'
   location: 'global'
@@ -108,7 +109,7 @@ resource privateDnsLinks 'Microsoft.Network/privateDnsZones/virtualNetworkLinks@
   }
 }]
 
-resource webAppPrivateEndpoint 'Microsoft.Network/privateEndpoints@2024-05-01' = {
+resource webAppPrivateEndpoint 'Microsoft.Network/privateEndpoints@2024-05-01' = if (enablePrivateEndpoints) {
   name: 'pe-mstech-demo-router-api'
   location: location
   properties: {
@@ -129,7 +130,7 @@ resource webAppPrivateEndpoint 'Microsoft.Network/privateEndpoints@2024-05-01' =
   }
 }
 
-resource searchPrivateEndpoint 'Microsoft.Network/privateEndpoints@2024-05-01' = if (enableSearchPrivateEndpoint) {
+resource searchPrivateEndpoint 'Microsoft.Network/privateEndpoints@2024-05-01' = if (enablePrivateEndpoints && enableSearchPrivateEndpoint) {
   name: 'pe-mstech-demo-search-free'
   location: location
   properties: {
@@ -150,7 +151,7 @@ resource searchPrivateEndpoint 'Microsoft.Network/privateEndpoints@2024-05-01' =
   }
 }
 
-resource storagePrivateEndpoint 'Microsoft.Network/privateEndpoints@2024-05-01' = {
+resource storagePrivateEndpoint 'Microsoft.Network/privateEndpoints@2024-05-01' = if (enablePrivateEndpoints) {
   name: 'pe-mstech-demo-ragstorage-blob'
   location: location
   properties: {
@@ -171,7 +172,7 @@ resource storagePrivateEndpoint 'Microsoft.Network/privateEndpoints@2024-05-01' 
   }
 }
 
-resource foundryPrivateEndpoint 'Microsoft.Network/privateEndpoints@2024-05-01' = {
+resource foundryPrivateEndpoint 'Microsoft.Network/privateEndpoints@2024-05-01' = if (enablePrivateEndpoints) {
   name: 'pe-mstech-demo-foundry'
   location: location
   properties: {
@@ -192,7 +193,7 @@ resource foundryPrivateEndpoint 'Microsoft.Network/privateEndpoints@2024-05-01' 
   }
 }
 
-resource routerExperimentPrivateEndpoint 'Microsoft.Network/privateEndpoints@2024-05-01' = {
+resource routerExperimentPrivateEndpoint 'Microsoft.Network/privateEndpoints@2024-05-01' = if (enablePrivateEndpoints) {
   name: 'pe-ms-tech-demo1-router-se'
   location: location
   properties: {
@@ -213,7 +214,7 @@ resource routerExperimentPrivateEndpoint 'Microsoft.Network/privateEndpoints@202
   }
 }
 
-resource webAppPrivateDns 'Microsoft.Network/privateEndpoints/privateDnsZoneGroups@2024-05-01' = {
+resource webAppPrivateDns 'Microsoft.Network/privateEndpoints/privateDnsZoneGroups@2024-05-01' = if (enablePrivateEndpoints) {
   parent: webAppPrivateEndpoint
   name: 'default'
   properties: {
@@ -228,7 +229,7 @@ resource webAppPrivateDns 'Microsoft.Network/privateEndpoints/privateDnsZoneGrou
   }
 }
 
-resource searchPrivateDns 'Microsoft.Network/privateEndpoints/privateDnsZoneGroups@2024-05-01' = if (enableSearchPrivateEndpoint) {
+resource searchPrivateDns 'Microsoft.Network/privateEndpoints/privateDnsZoneGroups@2024-05-01' = if (enablePrivateEndpoints && enableSearchPrivateEndpoint) {
   parent: searchPrivateEndpoint
   name: 'default'
   properties: {
@@ -243,7 +244,7 @@ resource searchPrivateDns 'Microsoft.Network/privateEndpoints/privateDnsZoneGrou
   }
 }
 
-resource storagePrivateDns 'Microsoft.Network/privateEndpoints/privateDnsZoneGroups@2024-05-01' = {
+resource storagePrivateDns 'Microsoft.Network/privateEndpoints/privateDnsZoneGroups@2024-05-01' = if (enablePrivateEndpoints) {
   parent: storagePrivateEndpoint
   name: 'default'
   properties: {
@@ -258,7 +259,7 @@ resource storagePrivateDns 'Microsoft.Network/privateEndpoints/privateDnsZoneGro
   }
 }
 
-resource foundryPrivateDns 'Microsoft.Network/privateEndpoints/privateDnsZoneGroups@2024-05-01' = {
+resource foundryPrivateDns 'Microsoft.Network/privateEndpoints/privateDnsZoneGroups@2024-05-01' = if (enablePrivateEndpoints) {
   parent: foundryPrivateEndpoint
   name: 'default'
   properties: {
@@ -285,7 +286,7 @@ resource foundryPrivateDns 'Microsoft.Network/privateEndpoints/privateDnsZoneGro
   }
 }
 
-resource routerExperimentPrivateDns 'Microsoft.Network/privateEndpoints/privateDnsZoneGroups@2024-05-01' = {
+resource routerExperimentPrivateDns 'Microsoft.Network/privateEndpoints/privateDnsZoneGroups@2024-05-01' = if (enablePrivateEndpoints) {
   parent: routerExperimentPrivateEndpoint
   name: 'default'
   properties: {
@@ -312,7 +313,7 @@ resource routerExperimentPrivateDns 'Microsoft.Network/privateEndpoints/privateD
   }
 }
 
-resource searchStorageSharedPrivateLink 'Microsoft.Search/searchServices/sharedPrivateLinkResources@2025-05-01' = if (enableSearchPrivateEndpoint) {
+resource searchStorageSharedPrivateLink 'Microsoft.Search/searchServices/sharedPrivateLinkResources@2025-05-01' = if (enablePrivateEndpoints && enableSearchPrivateEndpoint) {
   parent: searchService
   name: 'spl-mstech-demo-ragstorage-blob'
   properties: {
@@ -324,8 +325,8 @@ resource searchStorageSharedPrivateLink 'Microsoft.Search/searchServices/sharedP
 }
 
 output vnetId string = vnet.id
-output appServicePrivateEndpointId string = webAppPrivateEndpoint.id
-output searchPrivateEndpointId string = enableSearchPrivateEndpoint ? searchPrivateEndpoint.id : ''
-output storagePrivateEndpointId string = storagePrivateEndpoint.id
-output foundryPrivateEndpointId string = foundryPrivateEndpoint.id
-output routerExperimentPrivateEndpointId string = routerExperimentPrivateEndpoint.id
+output appServicePrivateEndpointId string = enablePrivateEndpoints ? webAppPrivateEndpoint.id : ''
+output searchPrivateEndpointId string = enablePrivateEndpoints && enableSearchPrivateEndpoint ? searchPrivateEndpoint.id : ''
+output storagePrivateEndpointId string = enablePrivateEndpoints ? storagePrivateEndpoint.id : ''
+output foundryPrivateEndpointId string = enablePrivateEndpoints ? foundryPrivateEndpoint.id : ''
+output routerExperimentPrivateEndpointId string = enablePrivateEndpoints ? routerExperimentPrivateEndpoint.id : ''
