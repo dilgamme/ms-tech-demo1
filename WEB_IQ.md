@@ -71,20 +71,17 @@ AI Services account is required.
   enabled in West Europe.
 - The existing Sweden Central account `mstech-demo-resource` has a compatible
   `gpt-5.4-mini` deployment and available quota.
-- The Sweden Central account currently has public network access disabled and
-  no private endpoint. A live Web IQ request therefore returns HTTP 403.
-- The automated attempt to enable public access was blocked pending explicit
-  approval because it permanently broadens network exposure.
+- Public network access was explicitly approved and enabled on
+  `mstech-demo-resource` on June 7, 2026. Its network ACL default action is
+  `Allow`.
+- The App Service managed identity has `Cognitive Services OpenAI User`,
+  `Cognitive Services User`, and `Foundry User` on the Sweden Central account.
+- A live Responses API `web_search` request completed successfully before the
+  application feature was enabled.
+- Production uses `WEB_IQ_ENABLED=true` with the Sweden Central endpoint.
 
-Production activation requires one of these network choices:
-
-1. Explicitly enable public access on `mstech-demo-resource`, then set the App
-   Service Web IQ settings.
-2. Recreate a private endpoint and DNS path between the App Service network and
-   the Sweden Central account.
-
-The application keeps `WEB_IQ_ENABLED=false` until one of those choices is
-completed.
+When private endpoints are restored, this public access can be disabled again
+after the private DNS and App Service network path are verified.
 
 ## Privacy And Cost
 
