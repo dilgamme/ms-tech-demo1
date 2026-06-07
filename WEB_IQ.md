@@ -36,7 +36,8 @@ flowchart LR
 - `backend/app/web_iq_service.py` owns the Responses API call and citation
   extraction.
 - `backend/app/router_logic.py` sends freshness-sensitive and explicit web
-  prompts to Web IQ.
+  prompts to Web IQ. Named domains, full URLs, and explicit website lookup
+  language are matched before the general intent classifier.
 - `RoutingResponse.sources` carries citations through the existing API
   contract.
 - `frontend/src/components/MessageList.jsx` displays up to five deduplicated,

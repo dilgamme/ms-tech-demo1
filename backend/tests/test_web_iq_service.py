@@ -67,6 +67,23 @@ class WebIQServiceTests(unittest.TestCase):
 
 
 class WebIQRoutingTests(unittest.IsolatedAsyncioTestCase):
+    def test_named_domain_routes_to_web_iq_without_classifier(self):
+        router = ModelRouter.__new__(ModelRouter)
+
+        route = router._rule_based_route(
+            "check on mstechsummit.pl website and give me brief about that event"
+        )
+
+        self.assertEqual(route["intent"], "realtime")
+        self.assertEqual(route["reason"], "Rule match: explicit website lookup → Web IQ")
+
+    def test_full_url_routes_to_web_iq(self):
+        router = ModelRouter.__new__(ModelRouter)
+
+        route = router._rule_based_route("Summarize https://azure.microsoft.com/en-us/blog/")
+
+        self.assertEqual(route["intent"], "realtime")
+
     async def test_fresh_prompt_uses_web_iq(self):
         router = ModelRouter.__new__(ModelRouter)
         router._rule_based_route = lambda prompt: {

@@ -115,6 +115,26 @@ REALTIME_PATTERNS = (
     "web iq",
 )
 
+WEB_LOOKUP_PATTERNS = (
+    "check this website",
+    "check this site",
+    "check the website",
+    "check the site",
+    "check on",
+    "visit the website",
+    "visit the site",
+    "open the website",
+    "open the site",
+    "look at the website",
+    "look at the site",
+)
+
+WEB_DOMAIN_PATTERN = re.compile(
+    r"(?<!@)\b(?:https?://|www\.)?[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?"
+    r"(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+(?:/[^\s]*)?",
+    re.IGNORECASE,
+)
+
 SELF_KNOWLEDGE_PATTERNS = (
     "how are you built",
     "how were you built",
@@ -358,6 +378,14 @@ class ModelRouter:
                 "reason": "Rule match: translation → Azure AI Translator",
                 "intent": "translation",
                 "confidence": 0.95
+            }
+
+        if self._is_web_lookup(text):
+            return {
+                "route": "router",
+                "reason": "Rule match: explicit website lookup → Web IQ",
+                "intent": "realtime",
+                "confidence": 0.98
             }
 
         if self._contains_any(text, SUMMARY_PATTERNS) and word_count < 900:
@@ -675,6 +703,12 @@ Return only valid JSON."""
 
     def _contains_any(self, text: str, patterns: tuple[str, ...]) -> bool:
         return any(re.search(rf"(?<!\w){re.escape(pattern)}(?!\w)", text) for pattern in patterns)
+
+    def _is_web_lookup(self, text: str) -> bool:
+        has_domain = bool(WEB_DOMAIN_PATTERN.search(text))
+        has_lookup_language = self._contains_any(text, WEB_LOOKUP_PATTERNS)
+        mentions_web_target = "website" in text or " web page" in text or " site" in text
+        return has_domain or (has_lookup_language and mentions_web_target)
 
     def _prepare_messages(self, messages: list = None) -> list:
         prepared = []
