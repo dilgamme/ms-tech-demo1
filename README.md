@@ -13,6 +13,7 @@ Production-ready demo showcasing enterprise multi-model AI architecture with int
 - **Voice Live and RAG**: Microphone conversations and Azure AI Search grounding
 - **Repository-Grounded Self Knowledge**: Architecture questions automatically use an allowlisted GitHub/Markdown RAG source
 - **Foundry Web IQ**: Fresh public-web grounding with cited pages and an existing realtime-provider fallback; see [`WEB_IQ.md`](WEB_IQ.md)
+- **Image Attachment Composer**: Stage an uploaded image, add an instruction, preview or remove it, and then send both together; see [`IMAGE_UPLOAD.md`](IMAGE_UPLOAD.md)
 - **Microsoft Account Sign-In**: Optional personal Microsoft and organizational Entra login
 - **Living Architecture Documentation**: Full deployed flow documented in [`SOLUTION_ARCHITECTURE.md`](SOLUTION_ARCHITECTURE.md)
 
@@ -258,6 +259,7 @@ ms-tech-demo/
 │   ├── deploy-frontend.yml
 │   └── deploy-backend.yml
 ├── WEB_IQ.md                     # Web IQ implementation and operations
+├── IMAGE_UPLOAD.md                # Image attachment composer behavior
 └── README.md
 ```
 

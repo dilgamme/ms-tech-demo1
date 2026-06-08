@@ -34,6 +34,7 @@ REPOSITORY_ROOT_FILES = {
     "AZURE_AI_TRANSLATOR.md",
     "FOUNDRY_MIGRATION.md",
     "WEB_IQ.md",
+    "IMAGE_UPLOAD.md",
     "deploy.sh",
 }
 REPOSITORY_ALLOWED_PREFIXES = (

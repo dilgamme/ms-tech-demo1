@@ -688,7 +688,7 @@ function App() {
         onToggleVoice={startVoiceSession}
         isRagMode={isRagMode}
         onToggleRag={() => setIsRagMode(prev => !prev)}
-        onImageSelected={handleImageSelected}
+        onImageSend={handleImageSelected}
       />
     </div>
   )
