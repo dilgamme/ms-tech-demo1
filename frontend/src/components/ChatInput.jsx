@@ -34,7 +34,7 @@ export const ChatInput = ({
   const handleSubmit = (e) => {
     e.preventDefault()
     const prompt = input.trim()
-    if (isLoading || (!prompt && !selectedImage)) {
+    if (isLoading || !prompt) {
       return
     }
 
@@ -173,7 +173,7 @@ export const ChatInput = ({
 
             <button
               type="submit"
-              disabled={isLoading || (!input.trim() && !selectedImage)}
+              disabled={isLoading || !input.trim()}
               className="inline-flex h-10 items-center justify-center rounded-lg bg-blue-600 px-4 text-sm font-medium text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400"
             >
               {isLoading ? 'Sending' : 'Send'}

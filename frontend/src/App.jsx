@@ -147,10 +147,10 @@ function App() {
   }
 
   const handleImageSelected = async (file, prompt) => {
-    if (!file || isLoading) {
+    const question = prompt?.trim()
+    if (!file || !question || isLoading) {
       return
     }
-    const question = prompt || 'Describe this image and call out important details.'
     setIsLoading(true)
     try {
       const imageDataUrl = await readImageAsDataUrl(file)

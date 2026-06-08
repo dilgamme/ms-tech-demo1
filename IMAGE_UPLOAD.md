@@ -12,11 +12,10 @@ then write an instruction before analysis begins.
 3. A thumbnail, filename, and remove button appear above the message field.
 4. The message field remains focused and accepts the image instruction.
 5. Send submits the image and instruction together to the image analysis API.
-6. If the instruction is empty, the backend request uses the existing default:
-   `Describe this image and call out important details.`
+6. Send remains disabled until the user writes an instruction.
 
 Selecting an image no longer sends it immediately or clears text already typed
-in the composer.
+in the composer. The application does not insert a default image prompt.
 
 ## Implementation
 
@@ -41,5 +40,4 @@ Manual checks:
   instruction.
 - Select an image with text already entered; confirm the text remains.
 - Remove an attachment; confirm the text remains and normal text chat can send.
-- Send an image without text; confirm the default description instruction is
-  used.
+- Attach an image without text and confirm Send remains disabled.
