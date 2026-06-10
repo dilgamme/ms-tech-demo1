@@ -50,7 +50,11 @@ async def route_prompt(
             messages.insert(0, {"role": "system", "content": memory_context})
         
         # Route the prompt
-        result = await router_instance.route_prompt(request.prompt, messages)
+        result = await router_instance.route_prompt(
+            request.prompt,
+            messages,
+            fast_mode=request.fastMode,
+        )
         conversation_id = await get_conversation_service().append_turn(
             memory_scope,
             request.conversationId,

@@ -147,7 +147,8 @@ POST /api/routePrompt
 Request:
 {
   "prompt": "What is machine learning?",
-  "messages": []
+  "messages": [],
+  "fastMode": true
 }
 
 Response:
@@ -157,6 +158,10 @@ Response:
   "answer": "Machine learning is..."
 }
 ```
+
+`fastMode` is optional and defaults to `false`. When enabled, the normal routing
+logic and selected model are preserved, while generation instructions and output
+budgets favor a shorter response.
 
 ## 🧠 Routing Logic
 

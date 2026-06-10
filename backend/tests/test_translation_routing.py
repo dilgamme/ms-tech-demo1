@@ -29,7 +29,7 @@ class TranslationRoutingTests(unittest.IsolatedAsyncioTestCase):
         router.translation_service = translation_service
         router.deepseek_model = "DeepSeek-V4-Flash"
 
-        async def deepseek(prompt, messages=None):
+        async def deepseek(prompt, messages=None, fast_mode=False):
             return "deepseek fallback"
 
         router._call_deepseek_model = deepseek

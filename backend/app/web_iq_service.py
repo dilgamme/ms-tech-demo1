@@ -29,7 +29,12 @@ class WebIQService:
             max_retries=0,
         )
 
-    async def search(self, prompt: str, messages: list | None = None) -> WebIQResult:
+    async def search(
+        self,
+        prompt: str,
+        messages: list | None = None,
+        fast_mode: bool = False,
+    ) -> WebIQResult:
         tool = {
             "type": "web_search",
             "search_context_size": settings.WEB_IQ_SEARCH_CONTEXT_SIZE,
@@ -50,10 +55,15 @@ class WebIQService:
                     "Base time-sensitive claims on the search results, preserve uncertainty, and cite sources. "
                     "For image or video requests, return useful public pages or media URLs; do not claim that "
                     "you directly inspected media unless the search result provides that information."
+                    + (
+                        " Fast mode is enabled: lead with the answer and include only the most relevant sources."
+                        if fast_mode
+                        else ""
+                    )
                 ),
                 tools=[tool],
                 include=["web_search_call.action.sources"],
-                max_output_tokens=1200,
+                max_output_tokens=450 if fast_mode else 1200,
                 timeout=settings.WEB_IQ_TIMEOUT_SECONDS,
             ),
             timeout=settings.WEB_IQ_TIMEOUT_SECONDS + 5,

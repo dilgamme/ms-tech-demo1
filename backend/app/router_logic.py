@@ -185,7 +185,12 @@ class ModelRouter:
                 max_retries=0
             )
 
-    async def route_prompt(self, prompt: str, messages: list = None) -> RoutingResponse:
+    async def route_prompt(
+        self,
+        prompt: str,
+        messages: list = None,
+        fast_mode: bool = False,
+    ) -> RoutingResponse:
         """
         Main routing logic:
         1. Use deterministic rules for obvious routes
@@ -200,11 +205,14 @@ class ModelRouter:
                 and self._contains_any(prompt.strip().lower(), SELF_KNOWLEDGE_PATTERNS)
             ):
                 try:
-                    rag_response = await get_rag_service().answer(prompt)
+                    rag_response = await get_rag_service().answer(
+                        prompt,
+                        fast_mode=fast_mode,
+                    )
                     if rag_response.sources:
                         return RoutingResponse(
                             modelUsed=f"Azure-AI-Search + {rag_response.modelUsed}",
-                            reason="Repository-grounded self knowledge",
+                            reason=self._mode_reason("Repository-grounded self knowledge", fast_mode),
                             answer=rag_response.answer,
                             sources=rag_response.sources,
                         )
@@ -263,10 +271,10 @@ class ModelRouter:
 
             if route == "reasoning":
                 try:
-                    response = await self._call_reasoning_model(prompt, messages)
+                    response = await self._call_reasoning_model(prompt, messages, fast_mode=fast_mode)
                     return RoutingResponse(
                         modelUsed=self.reasoning_model,
-                        reason=intent_classification["reason"],
+                        reason=self._mode_reason(intent_classification["reason"], fast_mode),
                         answer=response
                     )
                 except Exception as reasoning_error:
@@ -275,20 +283,35 @@ class ModelRouter:
                         type(reasoning_error).__name__,
                         reasoning_error
                     )
-                    response = await self._call_mini_answer_model(prompt, messages)
+                    response = await self._call_mini_answer_model(
+                        prompt,
+                        messages,
+                        fast_mode=fast_mode,
+                    )
                     return RoutingResponse(
                         modelUsed=self.router_model,
-                        reason=f"{intent_classification['reason']} | GPT-5-Pro unavailable/slow, fallback → GPT-5-mini",
+                        reason=self._mode_reason(
+                            f"{intent_classification['reason']} | "
+                            "GPT-5-Pro unavailable/slow, fallback → GPT-5-mini",
+                            fast_mode,
+                        ),
                         answer=response
                     )
             if route == "router":
                 if intent_classification.get("intent") == "realtime":
                     if settings.WEB_IQ_ENABLED:
                         try:
-                            web_result = await get_web_iq_service().search(prompt, messages)
+                            web_result = await get_web_iq_service().search(
+                                prompt,
+                                messages,
+                                fast_mode=fast_mode,
+                            )
                             return RoutingResponse(
                                 modelUsed=f"Web IQ + {web_result.model}",
-                                reason="Fresh public-web grounding via Azure OpenAI web search",
+                                reason=self._mode_reason(
+                                    "Fresh public-web grounding via Azure OpenAI web search",
+                                    fast_mode,
+                                ),
                                 answer=web_result.answer,
                                 sources=web_result.sources,
                             )
@@ -301,11 +324,19 @@ class ModelRouter:
                             intent_classification["reason"] = (
                                 "Web IQ unavailable, fallback to realtime providers"
                             )
-                    response = await self._call_router_model(prompt, messages)
+                    response = await self._call_router_model(
+                        prompt,
+                        messages,
+                        fast_mode=fast_mode,
+                    )
                     model_used = self.router_model
                 else:
                     try:
-                        response, model_used = await self._call_foundry_router_model(prompt, messages)
+                        response, model_used = await self._call_foundry_router_model(
+                            prompt,
+                            messages,
+                            fast_mode=fast_mode,
+                        )
                         intent_classification["reason"] = (
                             f"{intent_classification['reason']} | Foundry model-router selected {model_used}"
                         )
@@ -315,7 +346,11 @@ class ModelRouter:
                             type(foundry_router_error).__name__,
                             foundry_router_error
                         )
-                        response = await self._call_mini_answer_model(prompt, messages)
+                        response = await self._call_mini_answer_model(
+                            prompt,
+                            messages,
+                            fast_mode=fast_mode,
+                        )
                         model_used = self.router_model
                         intent_classification["reason"] = (
                             f"{intent_classification['reason']} | Foundry model-router unavailable/slow, "
@@ -323,25 +358,37 @@ class ModelRouter:
                         )
                 return RoutingResponse(
                     modelUsed=model_used,
-                    reason=intent_classification["reason"],
+                    reason=self._mode_reason(intent_classification["reason"], fast_mode),
                     answer=response
                 )
 
             else:
-                response = await self._call_deepseek_model(prompt, messages)
+                response = await self._call_deepseek_model(
+                    prompt,
+                    messages,
+                    fast_mode=fast_mode,
+                )
                 return RoutingResponse(
                     modelUsed=self.deepseek_model,
-                    reason=intent_classification["reason"],
+                    reason=self._mode_reason(intent_classification["reason"], fast_mode),
                     answer=response
                 )
                 
         except asyncio.TimeoutError:
             logger.error("Routing timed out")
             try:
-                response = await self._call_mini_answer_model(prompt, messages, compact=True)
+                response = await self._call_mini_answer_model(
+                    prompt,
+                    messages,
+                    compact=True,
+                    fast_mode=fast_mode,
+                )
                 return RoutingResponse(
                     modelUsed=self.router_model,
-                    reason="Selected model timed out, compact fallback → GPT-5-mini",
+                    reason=self._mode_reason(
+                        "Selected model timed out, compact fallback → GPT-5-mini",
+                        fast_mode,
+                    ),
                     answer=response
                 )
             except Exception as fallback_error:
@@ -354,10 +401,14 @@ class ModelRouter:
         except Exception as e:
             logger.error(f"Routing error: {e}")
             try:
-                response = await self._call_mini_answer_model(prompt, messages)
+                response = await self._call_mini_answer_model(
+                    prompt,
+                    messages,
+                    fast_mode=fast_mode,
+                )
                 return RoutingResponse(
                     modelUsed=self.router_model,
-                    reason="Fallback after error → GPT-5-mini",
+                    reason=self._mode_reason("Fallback after error → GPT-5-mini", fast_mode),
                     answer=response
                 )
             except Exception as fallback_error:
@@ -541,10 +592,15 @@ Return only valid JSON."""
                 "confidence": 0.0
             }
 
-    async def _call_deepseek_model(self, prompt: str, messages: list = None) -> str:
+    async def _call_deepseek_model(
+        self,
+        prompt: str,
+        messages: list = None,
+        fast_mode: bool = False,
+    ) -> str:
         """Call DeepSeek-V4-Flash model"""
         
-        message_list = self._prepare_messages(messages)
+        message_list = self._answer_messages(messages, fast_mode)
         message_list.append({"role": "user", "content": prompt})
         
         try:
@@ -553,7 +609,7 @@ Return only valid JSON."""
                 self.client.chat.completions.create,
                 model=self.deepseek_model,
                 messages=message_list,
-                max_completion_tokens=700,
+                max_completion_tokens=300 if fast_mode else 700,
                 timeout=FAST_MODEL_TIMEOUT_SECONDS
             )
             return response.choices[0].message.content
@@ -565,11 +621,12 @@ Return only valid JSON."""
         self,
         prompt: str,
         messages: list = None,
-        compact: bool = False
+        compact: bool = False,
+        fast_mode: bool = False,
     ) -> str:
         """Call GPT-5-mini as a fast fallback/general answer model."""
 
-        max_tokens = 400 if compact else 900
+        max_tokens = 300 if (compact or fast_mode) else 900
         timeout_seconds = MINI_RETRY_TIMEOUT_SECONDS if compact else MINI_ANSWER_TIMEOUT_SECONDS
         system_message = {
             "role": "system",
@@ -579,6 +636,12 @@ Return only valid JSON."""
                 "prefer 5-7 concise steps unless the user explicitly asks for a very detailed plan. "
                 "Avoid long introductions and avoid expanding every subtopic. "
                 "If the user asks for current/live data and no source is provided, say what is missing."
+                + (
+                    " Fast mode is enabled: answer directly, omit optional detail, and target at most "
+                    "three short paragraphs or five bullets."
+                    if fast_mode
+                    else ""
+                )
             )
         }
         message_list = [system_message, *self._prepare_messages(messages)]
@@ -594,7 +657,12 @@ Return only valid JSON."""
         )
         return response.choices[0].message.content
 
-    async def _call_router_model(self, prompt: str, messages: list = None) -> str:
+    async def _call_router_model(
+        self,
+        prompt: str,
+        messages: list = None,
+        fast_mode: bool = False,
+    ) -> str:
         """Call GPT-5-mini for freshness-sensitive prompts."""
 
         realtime_context = await self._run_blocking(
@@ -615,7 +683,12 @@ Return only valid JSON."""
                 "Mention the source and timestamp/link if present. "
                 "If live data is required but the retrieved context is missing or incomplete, say that clearly, "
                 "avoid inventing current facts, and explain what data or integration would be needed."
-                f"{context_instruction}"
+                + (
+                    " Fast mode is enabled: lead with the answer and include only essential source details."
+                    if fast_mode
+                    else ""
+                )
+                + context_instruction
             )
         }
         message_list = [system_message, *self._prepare_messages(messages)]
@@ -627,7 +700,7 @@ Return only valid JSON."""
                 self.client.chat.completions.create,
                 model=self.router_model,
                 messages=message_list,
-                max_completion_tokens=500,
+                max_completion_tokens=300 if fast_mode else 500,
                 timeout=FAST_MODEL_TIMEOUT_SECONDS
             )
             return response.choices[0].message.content
@@ -635,7 +708,12 @@ Return only valid JSON."""
             logger.error(f"Router model error: {e}")
             raise
 
-    async def _call_foundry_router_model(self, prompt: str, messages: list = None) -> tuple[str, str]:
+    async def _call_foundry_router_model(
+        self,
+        prompt: str,
+        messages: list = None,
+        fast_mode: bool = False,
+    ) -> tuple[str, str]:
         """Call the managed Foundry model-router for general interactive prompts."""
 
         if not self.foundry_router_client:
@@ -646,6 +724,12 @@ Return only valid JSON."""
             "content": (
                 "Answer clearly and practically. Use concise Markdown headings and bullets when useful. "
                 "Keep the answer demo-friendly and avoid long introductions."
+                + (
+                    " Fast mode is enabled: give the direct answer first, omit optional explanation, "
+                    "and target at most three short paragraphs or five bullets."
+                    if fast_mode
+                    else ""
+                )
             )
         }
         message_list = [system_message, *self._prepare_messages(messages)]
@@ -656,13 +740,18 @@ Return only valid JSON."""
             self.foundry_router_client.chat.completions.create,
             model=self.foundry_router_model,
             messages=message_list,
-            max_completion_tokens=900,
+            max_completion_tokens=350 if fast_mode else 900,
             timeout=FOUNDRY_ROUTER_TIMEOUT_SECONDS
         )
         selected_model = response.model or self.foundry_router_model
         return response.choices[0].message.content or "", selected_model
 
-    async def _call_reasoning_model(self, prompt: str, messages: list = None) -> str:
+    async def _call_reasoning_model(
+        self,
+        prompt: str,
+        messages: list = None,
+        fast_mode: bool = False,
+    ) -> str:
         """Call GPT-5-Pro reasoning model through the Responses API."""
         
         message_list = self._prepare_messages(messages)
@@ -677,8 +766,13 @@ Return only valid JSON."""
                 instructions=(
                     "Give a clear, practical answer. Use concise Markdown headings, bullets, and code blocks "
                     "when they improve readability. Avoid long introductions and keep the answer demo-friendly."
+                    + (
+                        " Fast mode is enabled: provide the conclusion and essential reasoning only."
+                        if fast_mode
+                        else ""
+                    )
                 ),
-                max_output_tokens=4000,
+                max_output_tokens=1200 if fast_mode else 4000,
                 timeout=REASONING_TIMEOUT_SECONDS
             )
             return self._extract_response_text(response)
@@ -703,6 +797,22 @@ Return only valid JSON."""
 
     def _contains_any(self, text: str, patterns: tuple[str, ...]) -> bool:
         return any(re.search(rf"(?<!\w){re.escape(pattern)}(?!\w)", text) for pattern in patterns)
+
+    def _answer_messages(self, messages: list | None, fast_mode: bool) -> list[dict]:
+        prepared = self._prepare_messages(messages)
+        if fast_mode:
+            prepared.insert(0, {
+                "role": "system",
+                "content": (
+                    "Fast mode is enabled. Answer directly and concisely, keeping only details required "
+                    "to answer the user's question."
+                ),
+            })
+        return prepared
+
+    @staticmethod
+    def _mode_reason(reason: str, fast_mode: bool) -> str:
+        return f"{reason} | Fast response mode" if fast_mode else reason
 
     def _is_web_lookup(self, text: str) -> bool:
         has_domain = bool(WEB_DOMAIN_PATTERN.search(text))

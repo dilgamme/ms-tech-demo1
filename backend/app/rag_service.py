@@ -32,7 +32,12 @@ class RagService:
         self.index_name = settings.AZURE_SEARCH_INDEX
         self.answer_model = settings.RAG_MODEL or settings.ROUTER_MODEL
 
-    async def answer(self, question: str, top_k: int | None = None) -> RagResponse:
+    async def answer(
+        self,
+        question: str,
+        top_k: int | None = None,
+        fast_mode: bool = False,
+    ) -> RagResponse:
         k = top_k or settings.RAG_TOP_K
         sources = await self._search(question, k)
         if not sources:
@@ -43,7 +48,7 @@ class RagService:
                 sources=[]
             )
 
-        answer = await self._generate_answer(question, sources)
+        answer = await self._generate_answer(question, sources, fast_mode)
         return RagResponse(
             answer=answer,
             modelUsed=self.answer_model,
@@ -82,7 +87,12 @@ class RagService:
             )
         return results
 
-    async def _generate_answer(self, question: str, sources: list[RagSource]) -> str:
+    async def _generate_answer(
+        self,
+        question: str,
+        sources: list[RagSource],
+        fast_mode: bool = False,
+    ) -> str:
         context = "\n\n".join(
             f"[{idx}] {source.title}\n{source.chunk}"
             for idx, source in enumerate(sources, start=1)
@@ -97,6 +107,11 @@ class RagService:
                     "The documents may describe the application that is answering the user. "
                     "Describe it as this application, but do not imply consciousness or capabilities beyond the context. "
                     "Keep the answer concise and cite source titles in parentheses."
+                    + (
+                        " Fast mode is enabled: give the direct answer first and include only essential evidence."
+                        if fast_mode
+                        else ""
+                    )
                 )
             },
             {
@@ -109,7 +124,7 @@ class RagService:
                 self.openai_client.chat.completions.create,
                 model=self.answer_model,
                 messages=messages,
-                max_completion_tokens=650,
+                max_completion_tokens=300 if fast_mode else 650,
                 timeout=RAG_TIMEOUT_SECONDS
             ),
             timeout=RAG_TIMEOUT_SECONDS

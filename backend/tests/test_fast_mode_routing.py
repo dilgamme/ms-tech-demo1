@@ -1,0 +1,85 @@
+import unittest
+from types import SimpleNamespace
+from unittest.mock import AsyncMock
+
+from app.models import RagRequest, RoutingRequest
+from app.router_logic import ModelRouter
+
+
+class FastModeRoutingTests(unittest.IsolatedAsyncioTestCase):
+    def test_request_defaults_to_standard_mode(self):
+        request = RoutingRequest(prompt="Hello")
+        rag_request = RagRequest(question="What is indexed?")
+
+        self.assertFalse(request.fastMode)
+        self.assertFalse(rag_request.fastMode)
+
+    async def test_fast_mode_preserves_managed_router_selection(self):
+        router = ModelRouter.__new__(ModelRouter)
+        router._rule_based_route = lambda prompt: {
+            "route": "router",
+            "reason": "Rule match: short/simple query → Foundry model-router",
+            "intent": "simple",
+        }
+        router._call_foundry_router_model = AsyncMock(
+            return_value=("Short answer", "gpt-5.4-mini")
+        )
+
+        response = await router.route_prompt("What is Azure?", fast_mode=True)
+
+        router._call_foundry_router_model.assert_awaited_once_with(
+            "What is Azure?",
+            None,
+            fast_mode=True,
+        )
+        self.assertEqual(response.modelUsed, "gpt-5.4-mini")
+        self.assertIn("Fast response mode", response.reason)
+
+    async def test_fast_mode_preserves_explicit_reasoning_route(self):
+        router = ModelRouter.__new__(ModelRouter)
+        router.reasoning_model = "gpt-5-pro-reasoning"
+        router._call_reasoning_model = AsyncMock(return_value="Essential reasoning")
+
+        response = await router.route_prompt(
+            "Use GPT-5-Pro and reason deeply about this architecture",
+            fast_mode=True,
+        )
+
+        router._call_reasoning_model.assert_awaited_once_with(
+            "Use GPT-5-Pro and reason deeply about this architecture",
+            None,
+            fast_mode=True,
+        )
+        self.assertEqual(response.modelUsed, "gpt-5-pro-reasoning")
+        self.assertIn("Fast response mode", response.reason)
+
+    async def test_foundry_fast_mode_uses_smaller_output_budget(self):
+        router = ModelRouter.__new__(ModelRouter)
+        completion = SimpleNamespace(
+            model="selected-model",
+            choices=[SimpleNamespace(message=SimpleNamespace(content="Answer"))],
+        )
+        create = unittest.mock.Mock(return_value=completion)
+        router.foundry_router_client = SimpleNamespace(
+            chat=SimpleNamespace(
+                completions=SimpleNamespace(create=create),
+            )
+        )
+        router.foundry_router_model = "model-router"
+
+        answer, model = await router._call_foundry_router_model(
+            "Explain Azure",
+            fast_mode=True,
+        )
+
+        self.assertEqual(answer, "Answer")
+        self.assertEqual(model, "selected-model")
+        self.assertEqual(create.call_args.kwargs["max_completion_tokens"], 350)
+        self.assertIn(
+            "Fast mode is enabled",
+            create.call_args.kwargs["messages"][0]["content"],
+        )
+
+
+if __name__ == "__main__":
+    unittest.main()
