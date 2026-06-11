@@ -50,17 +50,30 @@ SIMPLE_PATTERNS = (
 
 REASONING_PATTERNS = (
     "analyze",
+    "assess",
+    "evaluate",
     "compare and contrast",
+    "compare options",
     "tradeoffs",
+    "trade-offs",
     "debug",
+    "diagnose",
+    "troubleshoot",
     "root cause",
     "write code",
     "generate code",
+    "implement",
     "refactor",
+    "code review",
+    "review this code",
     "prove",
     "solve",
     "calculate",
     "optimize",
+    "reason through",
+    "think through",
+    "work through",
+    "derive",
 )
 
 EXPLICIT_PRO_PATTERNS = (
@@ -75,14 +88,49 @@ EXPLICIT_PRO_PATTERNS = (
 )
 
 ARCHITECTURE_PLANNING_PATTERNS = (
-    "architecture",
+    "design the architecture",
+    "design an architecture",
+    "architecture for",
+    "architect a",
     "landing zone",
     "deployment plan",
     "step by step",
+    "step-by-step",
     "design a",
     "design an",
     "plan for",
+    "migration plan",
+    "implementation plan",
     "roadmap",
+)
+
+REASONING_CONSTRAINT_PATTERNS = (
+    "constraint",
+    "requirement",
+    "must support",
+    "without using",
+    "while preserving",
+    "pros and cons",
+    "advantages and disadvantages",
+    "edge case",
+    "failure mode",
+    "best approach",
+    "recommend an approach",
+)
+
+CODE_ARTIFACT_PATTERN = re.compile(
+    r"```|(?<!\w)(?:traceback|stack trace|exception|compiler error|runtime error|"
+    r"function|class|method|api|sql|regex|dockerfile|terraform|bicep|kubernetes|"
+    r"javascript|typescript|python|c#|java|go|rust)(?!\w)",
+    re.IGNORECASE,
+)
+
+MATH_LOGIC_PATTERN = re.compile(
+    r"(?:\b(?:equation|theorem|probability|algorithm|complexity|proof|derive|"
+    r"calculate|integral|derivative|matrix|optimize)\b)|"
+    r"(?:\d+\s*(?:\+|-|\*|/|=|<|>)\s*\d+)|"
+    r"(?:\bif\b.+\bthen\b)",
+    re.IGNORECASE | re.DOTALL,
 )
 
 REALTIME_PATTERNS = (
@@ -297,6 +345,18 @@ class ModelRouter:
                         ),
                         answer=response
                     )
+            if route == "mini":
+                response = await self._call_mini_answer_model(
+                    prompt,
+                    messages,
+                    fast_mode=fast_mode,
+                )
+                return RoutingResponse(
+                    modelUsed=self.router_model,
+                    reason=self._mode_reason(intent_classification["reason"], fast_mode),
+                    answer=response,
+                )
+
             if route == "router":
                 if intent_classification.get("intent") == "realtime":
                     if settings.WEB_IQ_ENABLED:
@@ -447,6 +507,14 @@ class ModelRouter:
                 "confidence": 0.9
             }
 
+        if self._contains_any(text, REALTIME_PATTERNS):
+            return {
+                "route": "router",
+                "reason": "Rule match: fresh web/current data → Web IQ",
+                "intent": "realtime",
+                "confidence": 0.9
+            }
+
         if self._contains_any(text, EXPLICIT_PRO_PATTERNS):
             return {
                 "route": "reasoning",
@@ -455,28 +523,16 @@ class ModelRouter:
                 "confidence": 0.95
             }
 
-        if self._contains_any(text, ARCHITECTURE_PLANNING_PATTERNS):
+        reasoning_score, reasoning_signals = self._reasoning_score(text)
+        if reasoning_score >= 2:
             return {
-                "route": "router",
-                "reason": "Rule match: interactive architecture/planning → Foundry model-router",
-                "intent": "planning",
-                "confidence": 0.9
-            }
-
-        if self._contains_any(text, REASONING_PATTERNS):
-            return {
-                "route": "router",
-                "reason": "Rule match: interactive analysis → Foundry model-router",
+                "route": "mini",
+                "reason": (
+                    "Pre-router reasoning gate → GPT-5-mini "
+                    f"({', '.join(reasoning_signals[:3])})"
+                ),
                 "intent": "reasoning",
-                "confidence": 0.9
-            }
-
-        if self._contains_any(text, REALTIME_PATTERNS):
-            return {
-                "route": "router",
-                "reason": "Rule match: fresh web/current data → Web IQ",
-                "intent": "realtime",
-                "confidence": 0.9
+                "confidence": min(0.98, 0.72 + (reasoning_score * 0.05)),
             }
 
         if word_count <= 18 and (text.endswith("?") or self._contains_any(text, SIMPLE_PATTERNS)):
@@ -493,7 +549,9 @@ class ModelRouter:
         """
         Classify prompt intent:
         - Translation → Azure AI Translator, with DeepSeek fallback
-        - Simple, real-time, and interactive analysis → GPT-5-mini
+        - Interactive analysis/reasoning → GPT-5-mini before the managed router
+        - Simple and general prompts → managed Foundry model-router
+        - Real-time prompts → GPT-5-mini with retrieved context
         - Explicit deep/pro requests → GPT-5-Pro
         """
         
@@ -504,7 +562,7 @@ Return one JSON object:
 {
   "intent": "translation|summary|simple|realtime|analysis|code|math|planning|reasoning",
   "confidence": 0.0-1.0,
-  "route": "deepseek|router|reasoning",
+  "route": "deepseek|mini|router|reasoning",
   "reason": "short explanation"
 }
 
@@ -513,7 +571,7 @@ Rules:
 - Short summaries: deepseek
 - Simple factual questions, definitions, and brief explanations: router
 - Current/latest/real-time/live-data questions, including news, prices, weather, sports scores, recent events, or anything where freshness matters: router
-- Interactive analysis, architecture, planning, debugging, math/logic, code generation, code review, and optimization: router
+- Interactive analysis, architecture, planning, debugging, math/logic, code generation, code review, and optimization: mini
 - Use reasoning only if the user explicitly asks for pro, deep reasoning, highest quality, or to take extra time
 
 Return only valid JSON."""
@@ -541,7 +599,7 @@ Return only valid JSON."""
             explicit_pro = self._contains_any(prompt.lower(), EXPLICIT_PRO_PATTERNS)
             selected_route = route
             if intent in REASONING_INTENTS:
-                selected_route = "router"
+                selected_route = "mini"
             if intent in ROUTER_INTENTS:
                 selected_route = "router"
             if intent in DEEPSEEK_INTENTS:
@@ -550,7 +608,7 @@ Return only valid JSON."""
                 selected_route = "reasoning"
             elif selected_route == "reasoning" or confidence < 0.65:
                 selected_route = "router"
-            if selected_route not in {"deepseek", "router", "reasoning"}:
+            if selected_route not in {"deepseek", "mini", "router", "reasoning"}:
                 selected_route = "router"
             
             reason_map = {
@@ -558,11 +616,11 @@ Return only valid JSON."""
                 "summary": "Classifier: summary → DeepSeek",
                 "simple": "Classifier: simple query → Foundry model-router",
                 "realtime": "Classifier: real-time/current data → GPT-5-mini",
-                "analysis": "Classifier: interactive analysis → Foundry model-router",
-                "code": "Classifier: interactive code task → Foundry model-router",
-                "math": "Classifier: interactive math/logic → Foundry model-router",
-                "planning": "Classifier: interactive planning → Foundry model-router",
-                "reasoning": "Classifier: interactive reasoning → Foundry model-router"
+                "analysis": "Classifier: interactive analysis → GPT-5-mini",
+                "code": "Classifier: interactive code task → GPT-5-mini",
+                "math": "Classifier: interactive math/logic → GPT-5-mini",
+                "planning": "Classifier: interactive planning → GPT-5-mini",
+                "reasoning": "Classifier: interactive reasoning → GPT-5-mini"
             }
             
             reason = reason_map.get(intent)
@@ -571,6 +629,7 @@ Return only valid JSON."""
             if not reason:
                 route_labels = {
                     "deepseek": "cost-optimized route → DeepSeek",
+                    "mini": "reasoning-capable route → GPT-5-mini",
                     "router": "general interactive route → Foundry model-router",
                     "reasoning": "explicit deep reasoning → GPT-5-Pro"
                 }
@@ -584,10 +643,10 @@ Return only valid JSON."""
             }
             
         except Exception as e:
-            logger.warning(f"Classification error, defaulting to GPT-5-mini: {e}")
+            logger.warning(f"Classification error, defaulting to Foundry model-router: {e}")
             return {
                 "route": "router",
-                "reason": "Classification fallback → GPT-5-mini",
+                "reason": "Classification fallback → Foundry model-router",
                 "intent": "simple",
                 "confidence": 0.0
             }
@@ -797,6 +856,35 @@ Return only valid JSON."""
 
     def _contains_any(self, text: str, patterns: tuple[str, ...]) -> bool:
         return any(re.search(rf"(?<!\w){re.escape(pattern)}(?!\w)", text) for pattern in patterns)
+
+    def _reasoning_score(self, text: str) -> tuple[int, list[str]]:
+        score = 0
+        signals = []
+        word_count = len(text.split())
+
+        if self._contains_any(text, REASONING_PATTERNS):
+            score += 2
+            signals.append("reasoning action")
+        if self._contains_any(text, ARCHITECTURE_PLANNING_PATTERNS):
+            score += 2
+            signals.append("planning/design")
+        if self._contains_any(text, REASONING_CONSTRAINT_PATTERNS):
+            score += 1
+            signals.append("constraints/tradeoffs")
+        if CODE_ARTIFACT_PATTERN.search(text):
+            score += 1
+            signals.append("code/technical context")
+        if MATH_LOGIC_PATTERN.search(text):
+            score += 2
+            signals.append("math/logic")
+        if text.count("\n") >= 4 or len(re.findall(r"(?:^|\n)\s*(?:[-*]|\d+[.)])\s+", text)) >= 2:
+            score += 1
+            signals.append("multi-part prompt")
+        if word_count >= 60:
+            score += 1
+            signals.append("high prompt complexity")
+
+        return score, signals
 
     def _answer_messages(self, messages: list | None, fast_mode: bool) -> list[dict]:
         prepared = self._prepare_messages(messages)

@@ -286,11 +286,13 @@ flowchart TD
     Rules -->|Translation or summary| DeepSeek[DeepSeek-V4-Flash]
     Rules -->|Explicit Pro request| Pro[gpt-5-pro-reasoning]
     Rules -->|Realtime query| Realtime[gpt-5.4-mini + fetched context]
+    Rules -->|Reasoning/code/math/planning| Mini[gpt-5.4-mini]
     Rules -->|General interactive| Managed[Managed model-router]
     Rules -->|No confident rule| Classifier[gpt-5.4-mini classifier]
-    Classifier --> Managed
+    Classifier -->|Reasoning intent| Mini
+    Classifier -->|General/low confidence| Managed
     Managed -->|Success| Selected[Return selected underlying model]
-    Managed -->|Unavailable or slow| Mini[gpt-5.4-mini fallback]
+    Managed -->|Unavailable or slow| Mini
     Pro -->|Unavailable or slow| Mini
 ```
 
@@ -301,6 +303,7 @@ Routing summary:
 | Translation | `DeepSeek-V4-Flash` |
 | Summary | `DeepSeek-V4-Flash` |
 | Explicit deep reasoning request | `gpt-5-pro-reasoning` |
+| Analysis, code, math, architecture, and planning | `gpt-5.4-mini` pre-router reasoning route |
 | Realtime query | `gpt-5.4-mini` with fetched external context |
 | General interactive query | Managed Foundry `model-router` |
 | Managed router failure | `gpt-5.4-mini` fallback |

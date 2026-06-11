@@ -171,7 +171,7 @@ budgets favor a shorter response.
 | Summaries | DeepSeek-V4-Flash | No deep reasoning needed |
 | Simple questions | Foundry model-router | Managed model selection |
 | Live data | GPT-5-mini + retrieved context | Freshness-aware response |
-| Planning, analysis, math, and code | Foundry model-router | Managed model selection |
+| Planning, analysis, math, and code | GPT-5-mini | Pre-router reasoning detection |
 | Explicit deep/pro request | GPT-5-Pro | High-effort reasoning with longer latency |
 | Ambiguous or low-confidence classification | Foundry model-router | Managed model selection with GPT-5-mini fallback |
 
