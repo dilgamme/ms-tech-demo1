@@ -7,12 +7,12 @@ from app.router_logic import ModelRouter
 
 
 class FastModeRoutingTests(unittest.IsolatedAsyncioTestCase):
-    def test_request_defaults_to_standard_mode(self):
+    def test_request_defaults_to_optimized_mode(self):
         request = RoutingRequest(prompt="Hello")
         rag_request = RagRequest(question="What is indexed?")
 
-        self.assertFalse(request.fastMode)
-        self.assertFalse(rag_request.fastMode)
+        self.assertTrue(request.fastMode)
+        self.assertTrue(rag_request.fastMode)
 
     async def test_fast_mode_preserves_managed_router_selection(self):
         router = ModelRouter.__new__(ModelRouter)
@@ -33,7 +33,7 @@ class FastModeRoutingTests(unittest.IsolatedAsyncioTestCase):
             fast_mode=True,
         )
         self.assertEqual(response.modelUsed, "gpt-5.4-mini")
-        self.assertIn("Fast response mode", response.reason)
+        self.assertNotIn("Fast response mode", response.reason)
 
     async def test_fast_mode_preserves_explicit_reasoning_route(self):
         router = ModelRouter.__new__(ModelRouter)
@@ -51,7 +51,7 @@ class FastModeRoutingTests(unittest.IsolatedAsyncioTestCase):
             fast_mode=True,
         )
         self.assertEqual(response.modelUsed, "gpt-5-pro-reasoning")
-        self.assertIn("Fast response mode", response.reason)
+        self.assertNotIn("Fast response mode", response.reason)
 
     async def test_foundry_fast_mode_uses_smaller_output_budget(self):
         router = ModelRouter.__new__(ModelRouter)

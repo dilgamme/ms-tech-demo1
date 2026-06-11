@@ -10,8 +10,8 @@ class RoutingRequest(BaseModel):
     messages: Optional[List[Message]] = Field(default=None, description="Chat history")
     conversationId: Optional[str] = Field(default=None, description="Foundry conversation ID")
     fastMode: bool = Field(
-        default=False,
-        description="Prefer a shorter response while preserving normal model routing",
+        default=True,
+        description="Use optimized response budgets; retained for API compatibility",
     )
 
 class RagSource(BaseModel):
@@ -31,8 +31,8 @@ class RagRequest(BaseModel):
     question: str = Field(..., description="Question to answer using indexed RAG documents")
     topK: Optional[int] = Field(default=None, ge=1, le=10, description="Number of chunks to retrieve")
     fastMode: bool = Field(
-        default=False,
-        description="Prefer a shorter grounded answer",
+        default=True,
+        description="Use optimized response budgets; retained for API compatibility",
     )
 
 class RagResponse(BaseModel):

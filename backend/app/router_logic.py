@@ -900,7 +900,7 @@ Return only valid JSON."""
 
     @staticmethod
     def _mode_reason(reason: str, fast_mode: bool) -> str:
-        return f"{reason} | Fast response mode" if fast_mode else reason
+        return reason
 
     def _is_web_lookup(self, text: str) -> bool:
         has_domain = bool(WEB_DOMAIN_PATTERN.search(text))

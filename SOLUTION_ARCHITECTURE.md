@@ -309,8 +309,8 @@ Routing summary:
 | Managed router failure | `gpt-5.4-mini` fallback |
 
 The UI displays the selected model and routing explanation below each answer.
-An optional persistent Fast toggle keeps the same route and model selection while
-requesting shorter answers with reduced generation budgets.
+The application always requests concise responses with optimized generation
+budgets; no response-speed toggle is exposed in the UI.
 
 ## 9. Conversation History
 

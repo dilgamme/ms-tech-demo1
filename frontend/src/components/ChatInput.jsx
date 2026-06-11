@@ -8,8 +8,6 @@ export const ChatInput = ({
   onToggleVoice,
   isRagMode,
   onToggleRag,
-  isFastMode,
-  onToggleFastMode,
   onImageSend,
 }) => {
   const [input, setInput] = useState('')
@@ -112,25 +110,6 @@ export const ChatInput = ({
 
           <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-800 pt-2">
             <div className="flex flex-wrap items-center gap-2">
-              <button
-                type="button"
-                onClick={onToggleFastMode}
-                disabled={isLoading}
-                className={`inline-flex h-9 items-center gap-2 rounded-lg border px-3 text-xs font-medium transition ${
-                  isFastMode
-                    ? 'border-amber-400/50 bg-amber-500/15 text-amber-100'
-                    : 'border-slate-700 bg-slate-900 text-slate-300 hover:border-slate-600 hover:bg-slate-800'
-                } disabled:cursor-not-allowed disabled:opacity-50`}
-                title={isFastMode ? 'Fast responses are on' : 'Fast responses are off'}
-                aria-label="Toggle fast response mode"
-                aria-pressed={isFastMode}
-              >
-                <svg viewBox="0 0 24 24" aria-hidden="true" className="h-4 w-4">
-                  <path d="M13 2 5 14h6l-1 8 8-12h-6z" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
-                </svg>
-                <span>Fast</span>
-                <span className={`h-2 w-2 rounded-full ${isFastMode ? 'bg-amber-300' : 'bg-slate-600'}`} />
-              </button>
               <button
                 type="button"
                 onClick={onToggleRag}

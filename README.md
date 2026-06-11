@@ -159,9 +159,9 @@ Response:
 }
 ```
 
-`fastMode` is optional and defaults to `false`. When enabled, the normal routing
-logic and selected model are preserved, while generation instructions and output
-budgets favor a shorter response.
+`fastMode` is retained for API compatibility and defaults to `true`. The web app
+always uses optimized generation instructions and output budgets without exposing
+a mode switch.
 
 ## 🧠 Routing Logic
 

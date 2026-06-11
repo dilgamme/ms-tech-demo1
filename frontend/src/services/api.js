@@ -48,13 +48,13 @@ api.interceptors.response.use(
   },
 )
 
-export const routePrompt = async (prompt, messages = [], conversationId = null, fastMode = false) => {
+export const routePrompt = async (prompt, messages = [], conversationId = null) => {
   try {
     const response = await api.post('/api/routePrompt', {
       prompt,
       messages,
       conversationId,
-      fastMode,
+      fastMode: true,
     })
     return response.data
   } catch (error) {
@@ -78,12 +78,12 @@ export const deleteConversation = async (conversationId) => {
   return response.data
 }
 
-export const ragPrompt = async (question, topK = 5, fastMode = false) => {
+export const ragPrompt = async (question, topK = 5) => {
   try {
     const response = await api.post('/api/rag', {
       question,
       topK,
-      fastMode,
+      fastMode: true,
     })
     return response.data
   } catch (error) {

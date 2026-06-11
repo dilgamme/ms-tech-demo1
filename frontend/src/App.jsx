@@ -11,7 +11,6 @@ const MAX_CONTEXT_MESSAGES = 6
 const MAX_CONTEXT_CHARS = 1200
 const VOICE_MODEL = 'Azure-Speech-Voice-Live'
 const VOICE_REASON = 'Microphone input -> Voice Live realtime session'
-const FAST_MODE_KEY = 'mstech_fast_response_mode'
 
 const createMessageId = () => `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`
 
@@ -50,9 +49,6 @@ function App() {
   const [isHistoryLoading, setIsHistoryLoading] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [isRagMode, setIsRagMode] = useState(false)
-  const [isFastMode, setIsFastMode] = useState(
-    () => localStorage.getItem(FAST_MODE_KEY) === 'true',
-  )
   const [isVoiceActive, setIsVoiceActive] = useState(false)
   const [voiceStatus, setVoiceStatus] = useState('')
   const voiceSocketRef = useRef(null)
@@ -112,7 +108,7 @@ function App() {
     try {
       let response
       if (isRagMode) {
-        response = await ragPrompt(prompt, 5, isFastMode)
+        response = await ragPrompt(prompt, 5)
       } else if (isImageGenerationPrompt(prompt)) {
         response = await generateImage(prompt)
       } else {
@@ -124,7 +120,6 @@ function App() {
           prompt,
           contextMessages,
           activeConversationId,
-          isFastMode,
         )
       }
       const assistantMessage = {
@@ -193,14 +188,6 @@ function App() {
       setMessages([])
       setActiveConversationId(null)
     }
-  }
-
-  const toggleFastMode = () => {
-    setIsFastMode((current) => {
-      const next = !current
-      localStorage.setItem(FAST_MODE_KEY, String(next))
-      return next
-    })
   }
 
   const refreshConversations = async () => {
@@ -705,8 +692,6 @@ function App() {
         onToggleVoice={startVoiceSession}
         isRagMode={isRagMode}
         onToggleRag={() => setIsRagMode(prev => !prev)}
-        isFastMode={isFastMode}
-        onToggleFastMode={toggleFastMode}
         onImageSend={handleImageSelected}
       />
     </div>
