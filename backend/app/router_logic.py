@@ -222,6 +222,12 @@ class ModelRouter:
         self.deepseek_model = settings.DEEPSEEK_MODEL
         self.router_model = settings.ROUTER_MODEL
         self.reasoning_model = settings.REASONING_MODEL
+        reasoning_endpoint = (settings.REASONING_ENDPOINT or settings.AZURE_OPENAI_ENDPOINT).rstrip("/")
+        self.reasoning_client = OpenAI(
+            api_key=get_openai_api_key(),
+            base_url=f"{reasoning_endpoint}/openai/v1/",
+            max_retries=0,
+        )
         self.foundry_router_model = settings.FOUNDRY_ROUTER_MODEL
         self.translation_service = TranslationService() if settings.TRANSLATOR_ENABLED else None
         self.foundry_router_client = None
@@ -811,7 +817,7 @@ Return only valid JSON."""
         messages: list = None,
         fast_mode: bool = False,
     ) -> str:
-        """Call GPT-5-Pro reasoning model through the Responses API."""
+        """Call GPT-5-Pro through a Responses-capable Azure OpenAI endpoint."""
         
         message_list = self._prepare_messages(messages)
         message_list.append({"role": "user", "content": prompt})
@@ -819,7 +825,7 @@ Return only valid JSON."""
         try:
             response = await self._run_blocking(
                 REASONING_TIMEOUT_SECONDS + 5,
-                self.client.responses.create,
+                self.reasoning_client.responses.create,
                 model=self.reasoning_model,
                 input=message_list,
                 instructions=(

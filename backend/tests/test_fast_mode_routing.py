@@ -80,6 +80,24 @@ class FastModeRoutingTests(unittest.IsolatedAsyncioTestCase):
             create.call_args.kwargs["messages"][0]["content"],
         )
 
+    async def test_reasoning_model_uses_dedicated_client(self):
+        router = ModelRouter.__new__(ModelRouter)
+        response = SimpleNamespace(output_text="Reasoned answer")
+        create = unittest.mock.Mock(return_value=response)
+        router.reasoning_client = SimpleNamespace(
+            responses=SimpleNamespace(create=create),
+        )
+        router.reasoning_model = "gpt-5-pro-reasoning"
+
+        answer = await router._call_reasoning_model(
+            "Reason deeply about this design",
+            fast_mode=True,
+        )
+
+        self.assertEqual(answer, "Reasoned answer")
+        self.assertEqual(create.call_args.kwargs["model"], "gpt-5-pro-reasoning")
+        self.assertEqual(create.call_args.kwargs["max_output_tokens"], 1200)
+
 
 if __name__ == "__main__":
     unittest.main()

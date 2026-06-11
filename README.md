@@ -194,6 +194,7 @@ USE_MANAGED_IDENTITY=false
 DEEPSEEK_MODEL=DeepSeek-V4-Flash
 ROUTER_MODEL=gpt-5.4-mini
 REASONING_MODEL=gpt-5-pro-reasoning
+REASONING_ENDPOINT=https://your-responses-capable-resource.cognitiveservices.azure.com/
 FOUNDRY_ROUTER_ENDPOINT=https://your-router-resource.cognitiveservices.azure.com/
 FOUNDRY_ROUTER_MODEL=model-router
 WEB_IQ_ENABLED=false
