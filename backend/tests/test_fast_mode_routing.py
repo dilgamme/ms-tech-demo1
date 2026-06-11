@@ -96,8 +96,32 @@ class FastModeRoutingTests(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual(answer, "Reasoned answer")
         self.assertEqual(create.call_args.kwargs["model"], "gpt-5-pro-reasoning")
-        self.assertEqual(create.call_args.kwargs["max_output_tokens"], 4000)
-        self.assertEqual(create.call_args.kwargs["timeout"], 180)
+        self.assertEqual(create.call_args.kwargs["max_output_tokens"], 1200)
+        self.assertEqual(create.call_args.kwargs["timeout"], 75)
+
+    async def test_reasoning_model_continues_after_reasoning_only_response(self):
+        router = ModelRouter.__new__(ModelRouter)
+        analysis = SimpleNamespace(
+            id="resp_reasoning",
+            output_text=None,
+            output=[],
+            incomplete_details=SimpleNamespace(reason="max_output_tokens"),
+        )
+        answer_response = SimpleNamespace(output_text="Final Pro answer")
+        create = unittest.mock.Mock(side_effect=[analysis, answer_response])
+        router.reasoning_client = SimpleNamespace(
+            responses=SimpleNamespace(create=create),
+        )
+        router.reasoning_model = "gpt-5-pro-reasoning"
+
+        answer = await router._call_reasoning_model("Analyze this deeply", fast_mode=True)
+
+        self.assertEqual(answer, "Final Pro answer")
+        self.assertEqual(create.call_count, 2)
+        continuation = create.call_args_list[1].kwargs
+        self.assertEqual(continuation["previous_response_id"], "resp_reasoning")
+        self.assertEqual(continuation["max_output_tokens"], 3000)
+        self.assertEqual(continuation["timeout"], 120)
 
 
 if __name__ == "__main__":

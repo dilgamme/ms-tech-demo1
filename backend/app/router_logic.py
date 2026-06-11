@@ -209,7 +209,8 @@ FAST_MODEL_TIMEOUT_SECONDS = 15
 MINI_ANSWER_TIMEOUT_SECONDS = 40
 MINI_RETRY_TIMEOUT_SECONDS = 20
 FOUNDRY_ROUTER_TIMEOUT_SECONDS = 30
-REASONING_TIMEOUT_SECONDS = 180
+REASONING_ANALYSIS_TIMEOUT_SECONDS = 75
+REASONING_ANSWER_TIMEOUT_SECONDS = 120
 
 class ModelRouter:
     def __init__(self):
@@ -824,7 +825,7 @@ Return only valid JSON."""
         
         try:
             response = await self._run_blocking(
-                REASONING_TIMEOUT_SECONDS + 5,
+                REASONING_ANALYSIS_TIMEOUT_SECONDS + 5,
                 self.reasoning_client.responses.create,
                 model=self.reasoning_model,
                 input=message_list,
@@ -837,12 +838,34 @@ Return only valid JSON."""
                         else ""
                     )
                 ),
-                # GPT-5-Pro only supports high reasoning effort and can spend
-                # more than 2,500 tokens before emitting visible answer text.
-                max_output_tokens=4000,
-                timeout=REASONING_TIMEOUT_SECONDS
+                max_output_tokens=1200,
+                timeout=REASONING_ANALYSIS_TIMEOUT_SECONDS,
             )
-            return self._extract_response_text(response)
+            try:
+                return self._extract_response_text(response)
+            except ValueError:
+                response_id = getattr(response, "id", None)
+                incomplete_reason = getattr(
+                    getattr(response, "incomplete_details", None),
+                    "reason",
+                    None,
+                )
+                if not response_id or incomplete_reason != "max_output_tokens":
+                    raise
+
+            continuation = await self._run_blocking(
+                REASONING_ANSWER_TIMEOUT_SECONDS + 5,
+                self.reasoning_client.responses.create,
+                model=self.reasoning_model,
+                previous_response_id=response_id,
+                input=(
+                    "Now provide the final answer in at most 500 words. "
+                    "Do not continue the analysis. Be decisive and concise."
+                ),
+                max_output_tokens=3000,
+                timeout=REASONING_ANSWER_TIMEOUT_SECONDS,
+            )
+            return self._extract_response_text(continuation)
         except Exception as e:
             logger.error(f"Reasoning model error: {e}")
             raise
