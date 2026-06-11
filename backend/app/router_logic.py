@@ -3,7 +3,7 @@ import json
 import logging
 import re
 from openai import OpenAI
-from app.azure_auth import get_openai_api_key
+from app.azure_auth import get_foundry_api_key, get_openai_api_key
 from app.config import settings
 from app.models import RoutingResponse
 from app.rag_service import get_rag_service
@@ -224,8 +224,13 @@ class ModelRouter:
         self.router_model = settings.ROUTER_MODEL
         self.reasoning_model = settings.REASONING_MODEL
         reasoning_endpoint = (settings.REASONING_ENDPOINT or settings.AZURE_OPENAI_ENDPOINT).rstrip("/")
+        reasoning_api_key = (
+            get_foundry_api_key()
+            if ".services.ai.azure.com" in reasoning_endpoint.lower()
+            else get_openai_api_key()
+        )
         self.reasoning_client = OpenAI(
-            api_key=get_openai_api_key(),
+            api_key=reasoning_api_key,
             base_url=f"{reasoning_endpoint}/openai/v1/",
             max_retries=0,
         )

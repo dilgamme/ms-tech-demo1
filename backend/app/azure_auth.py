@@ -25,6 +25,17 @@ def get_openai_api_key():
     return settings.AZURE_OPENAI_KEY
 
 
+def get_foundry_api_key():
+    if settings.USE_MANAGED_IDENTITY:
+        return get_bearer_token_provider(
+            get_azure_credential(),
+            FOUNDRY_SCOPE,
+        )
+    if not settings.AZURE_OPENAI_KEY:
+        raise ValueError("AZURE_OPENAI_KEY is required when managed identity is disabled")
+    return settings.AZURE_OPENAI_KEY
+
+
 def get_cognitive_services_auth_headers(api_key: str | None = None) -> dict[str, str]:
     if settings.USE_MANAGED_IDENTITY and not api_key:
         token = get_azure_credential().get_token(COGNITIVE_SERVICES_SCOPE)

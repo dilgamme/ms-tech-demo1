@@ -475,7 +475,7 @@ The backend keeps Voice Live credentials off the public browser.
 |---------|------------------|---------|
 | `USE_MANAGED_IDENTITY` | `true` | Use App Service managed identity |
 | `AZURE_OPENAI_ENDPOINT` | `https://ms-tech-demo-resource-we.cognitiveservices.azure.com/` | Main model endpoint |
-| `REASONING_ENDPOINT` | `https://mstech-demo-resource.cognitiveservices.azure.com/` | GPT-5-Pro Responses API endpoint in Sweden Central |
+| `REASONING_ENDPOINT` | `https://ms-tech-demo-resource-we.services.ai.azure.com/api/projects/ms-tech-demo1` | GPT-5-Pro endpoint in the West Europe `ms-tech-demo1` Foundry project |
 | `FOUNDRY_ROUTER_ENDPOINT` | `https://ms-tech-demo1-router-se.cognitiveservices.azure.com/` | Managed router endpoint |
 | `FOUNDRY_ROUTER_MODEL` | `model-router` | Managed router deployment |
 | `FOUNDRY_PROJECT_ENDPOINT` | `https://ms-tech-demo-resource-we.services.ai.azure.com/api/projects/ms-tech-demo1` | Conversations and Memory Store API |

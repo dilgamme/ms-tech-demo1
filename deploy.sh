@@ -44,7 +44,7 @@ az webapp config appsettings set \
     DEEPSEEK_MODEL="DeepSeek-V4-Flash" \
     ROUTER_MODEL="gpt-5.4-mini" \
     REASONING_MODEL="gpt-5-pro-reasoning" \
-    REASONING_ENDPOINT="https://mstech-demo-resource.cognitiveservices.azure.com/" \
+    REASONING_ENDPOINT="https://ms-tech-demo-resource-we.services.ai.azure.com/api/projects/ms-tech-demo1" \
     FOUNDRY_ROUTER_ENDPOINT="https://ms-tech-demo1-router-se.cognitiveservices.azure.com/" \
     FOUNDRY_ROUTER_MODEL="model-router" \
     FOUNDRY_PROJECT_ENDPOINT="https://ms-tech-demo-resource-we.services.ai.azure.com/api/projects/ms-tech-demo1" \
