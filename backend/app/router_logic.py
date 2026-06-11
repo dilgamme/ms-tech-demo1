@@ -209,7 +209,7 @@ FAST_MODEL_TIMEOUT_SECONDS = 15
 MINI_ANSWER_TIMEOUT_SECONDS = 40
 MINI_RETRY_TIMEOUT_SECONDS = 20
 FOUNDRY_ROUTER_TIMEOUT_SECONDS = 30
-REASONING_TIMEOUT_SECONDS = 90
+REASONING_TIMEOUT_SECONDS = 180
 
 class ModelRouter:
     def __init__(self):
@@ -837,7 +837,9 @@ Return only valid JSON."""
                         else ""
                     )
                 ),
-                max_output_tokens=1200 if fast_mode else 4000,
+                # GPT-5-Pro only supports high reasoning effort and can spend
+                # more than 2,500 tokens before emitting visible answer text.
+                max_output_tokens=4000,
                 timeout=REASONING_TIMEOUT_SECONDS
             )
             return self._extract_response_text(response)

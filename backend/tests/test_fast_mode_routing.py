@@ -96,7 +96,8 @@ class FastModeRoutingTests(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual(answer, "Reasoned answer")
         self.assertEqual(create.call_args.kwargs["model"], "gpt-5-pro-reasoning")
-        self.assertEqual(create.call_args.kwargs["max_output_tokens"], 1200)
+        self.assertEqual(create.call_args.kwargs["max_output_tokens"], 4000)
+        self.assertEqual(create.call_args.kwargs["timeout"], 180)
 
 
 if __name__ == "__main__":
