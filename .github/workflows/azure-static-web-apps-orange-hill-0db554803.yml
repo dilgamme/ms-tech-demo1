@@ -26,6 +26,7 @@ jobs:
         env:
           VITE_API_URL: https://mstech-demo-router-api.azurewebsites.net
           VITE_ENTRA_CLIENT_ID: ead1d8be-064b-4e75-af9b-66ab0c28a954
+          VITE_ENTRA_AUTHORITY: https://login.microsoftonline.com/common
           VITE_ENTRA_API_SCOPE: api://ead1d8be-064b-4e75-af9b-66ab0c28a954/access_as_user
         with:
           azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_ORANGE_HILL_0DB554803 }}

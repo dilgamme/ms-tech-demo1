@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useIsAuthenticated, useMsal } from '@azure/msal-react'
-import { loginRequest, msalEnabled } from './auth'
+import { loginRequest, logoutRequest, msalEnabled } from './auth'
 import { analyzeImage, deleteConversation, generateImage, getConversation, listConversations, ragPrompt, routePrompt } from './services/api'
 import { createPcmPlayer, createPcmRecorder, createVoiceLiveSocket } from './services/voiceLive'
 import { MessageList } from './components/MessageList'
@@ -230,8 +230,8 @@ function App() {
 
   const handleMicrosoftSignOut = async () => {
     await instance.logoutRedirect({
+      ...logoutRequest,
       account: instance.getActiveAccount() || accounts[0],
-      postLogoutRedirectUri: window.location.origin,
     })
   }
 

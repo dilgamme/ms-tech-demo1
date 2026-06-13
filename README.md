@@ -234,6 +234,7 @@ cost behavior, and citation flow.
 ```
 VITE_API_URL=https://mstech-demo-router-api.azurewebsites.net
 VITE_ENTRA_CLIENT_ID=ead1d8be-064b-4e75-af9b-66ab0c28a954
+VITE_ENTRA_AUTHORITY=https://login.microsoftonline.com/common
 VITE_ENTRA_API_SCOPE=api://ead1d8be-064b-4e75-af9b-66ab0c28a954/access_as_user
 ```
 
