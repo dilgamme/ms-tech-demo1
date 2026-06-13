@@ -201,7 +201,11 @@ WEB_IQ_ENABLED=false
 WEB_IQ_ENDPOINT=https://your-responses-api-region.cognitiveservices.azure.com/
 WEB_IQ_MODEL=gpt-5.4-mini
 WEB_IQ_SEARCH_CONTEXT_SIZE=medium
-AUTH_CLIENT_ID=ead1d8be-064b-4e75-af9b-66ab0c28a954
+AUTH_CLIENT_ID=ee9c8967-93a4-49a2-ace1-142ad566f27d
+AUTH_JWKS_URL=https://dlgmb2c.b2clogin.com/dlgmb2c.onmicrosoft.com/discovery/v2.0/keys?p=B2C_1_SUSI
+AUTH_ISSUER=https://dlgmb2c.b2clogin.com/e7487735-3dc4-4534-9748-f0d4e91c44ca/v2.0/
+AUTH_POLICY=B2C_1_SUSI
+AUTH_TENANT_ID=e7487735-3dc4-4534-9748-f0d4e91c44ca
 AUTH_REQUIRED=false
 FOUNDRY_PROJECT_ENDPOINT=https://your-foundry-resource.services.ai.azure.com/api/projects/your-project
 FOUNDRY_CONVERSATIONS_ENABLED=true
@@ -233,9 +237,10 @@ cost behavior, and citation flow.
 **Frontend (.env.local):**
 ```
 VITE_API_URL=https://mstech-demo-router-api.azurewebsites.net
-VITE_ENTRA_CLIENT_ID=ead1d8be-064b-4e75-af9b-66ab0c28a954
-VITE_ENTRA_AUTHORITY=https://login.microsoftonline.com/common
-VITE_ENTRA_API_SCOPE=api://ead1d8be-064b-4e75-af9b-66ab0c28a954/access_as_user
+VITE_ENTRA_CLIENT_ID=ee9c8967-93a4-49a2-ace1-142ad566f27d
+VITE_ENTRA_AUTHORITY=https://dlgmb2c.b2clogin.com/dlgmb2c.onmicrosoft.com/B2C_1_SUSI
+VITE_ENTRA_KNOWN_AUTHORITY=dlgmb2c.b2clogin.com
+VITE_ENTRA_API_SCOPE=https://dlgmb2c.onmicrosoft.com/ee9c8967-93a4-49a2-ace1-142ad566f27d/access_as_user
 ```
 
 ## 🗂️ Project Structure

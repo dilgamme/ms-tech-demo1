@@ -57,7 +57,11 @@ az webapp config appsettings set \
     TRANSLATOR_ENDPOINT="https://ms-tech-demo-resource-we.cognitiveservices.azure.com/" \
     TRANSLATOR_REGION="westeurope" \
     TRANSLATOR_API_VERSION="3.0" \
-    AUTH_CLIENT_ID="ead1d8be-064b-4e75-af9b-66ab0c28a954" \
+    AUTH_CLIENT_ID="ee9c8967-93a4-49a2-ace1-142ad566f27d" \
+    AUTH_JWKS_URL="https://dlgmb2c.b2clogin.com/dlgmb2c.onmicrosoft.com/discovery/v2.0/keys?p=B2C_1_SUSI" \
+    AUTH_ISSUER="https://dlgmb2c.b2clogin.com/e7487735-3dc4-4534-9748-f0d4e91c44ca/v2.0/" \
+    AUTH_POLICY="B2C_1_SUSI" \
+    AUTH_TENANT_ID="e7487735-3dc4-4534-9748-f0d4e91c44ca" \
     AUTH_REQUIRED="false" \
     MEMORY_STORE_NAME="ms-tech-demo-memory" \
     MEMORY_STORE_CHAT_MODEL="gpt-5.4-mini" \

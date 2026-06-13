@@ -36,6 +36,10 @@ class Settings(BaseSettings):
 
     # Microsoft identity platform authentication
     AUTH_CLIENT_ID: Optional[str] = None
+    AUTH_JWKS_URL: str = "https://login.microsoftonline.com/common/discovery/v2.0/keys"
+    AUTH_ISSUER: Optional[str] = None
+    AUTH_POLICY: Optional[str] = None
+    AUTH_TENANT_ID: Optional[str] = None
     AUTH_REQUIRED: bool = False
     
     # Frontend URL for CORS

@@ -7,6 +7,7 @@ import {
 const CLIENT_ID = import.meta.env.VITE_ENTRA_CLIENT_ID
 const AUTHORITY = import.meta.env.VITE_ENTRA_AUTHORITY
   || 'https://login.microsoftonline.com/common'
+const KNOWN_AUTHORITY = import.meta.env.VITE_ENTRA_KNOWN_AUTHORITY
 
 export const apiScope = import.meta.env.VITE_ENTRA_API_SCOPE
   || (CLIENT_ID ? `api://${CLIENT_ID}/access_as_user` : undefined)
@@ -20,6 +21,7 @@ export const msalInstance = new PublicClientApplication({
     redirectUri: window.location.origin,
     postLogoutRedirectUri: window.location.origin,
     navigateToLoginRequestUrl: false,
+    knownAuthorities: KNOWN_AUTHORITY ? [KNOWN_AUTHORITY] : undefined,
   },
   cache: {
     cacheLocation: 'localStorage',
@@ -49,8 +51,6 @@ export const initializeAuth = async () => {
 export const loginRequest = {
   scopes: [
     'openid',
-    'profile',
-    'email',
     'offline_access',
     ...(apiScope ? [apiScope] : []),
   ],

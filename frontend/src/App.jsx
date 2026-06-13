@@ -601,7 +601,7 @@ function App() {
                 onClick={isAuthenticated ? handleMicrosoftSignOut : handleMicrosoftSignIn}
                 className="inline-flex h-9 items-center justify-center rounded-lg border border-sky-700 bg-sky-950 px-3 text-sm font-medium text-sky-100 transition hover:border-sky-500 hover:bg-sky-900"
               >
-                {isAuthenticated ? `Sign out ${accounts[0]?.name || ''}` : 'Sign in with Microsoft'}
+                {isAuthenticated ? `Sign out ${accounts[0]?.name || ''}` : 'Sign in or sign up'}
               </button>
             )}
             <button
