@@ -97,7 +97,7 @@ class FastModeRoutingTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(answer, "Reasoned answer")
         self.assertEqual(create.call_args.kwargs["model"], "gpt-5-pro-reasoning")
         self.assertEqual(create.call_args.kwargs["max_output_tokens"], 1200)
-        self.assertEqual(create.call_args.kwargs["timeout"], 75)
+        self.assertEqual(create.call_args.kwargs["timeout"], 150)
 
     async def test_reasoning_model_continues_after_reasoning_only_response(self):
         router = ModelRouter.__new__(ModelRouter)
