@@ -28,7 +28,9 @@ export const msalInstance = new PublicClientApplication({
   },
 })
 
-msalInstance.enableAccountStorageEvents()
+if (typeof msalInstance.enableAccountStorageEvents === 'function') {
+  msalInstance.enableAccountStorageEvents()
+}
 msalInstance.addEventCallback((event) => {
   if (
     (event.eventType === EventType.LOGIN_SUCCESS

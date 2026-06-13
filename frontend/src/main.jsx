@@ -5,7 +5,14 @@ import App from './App.jsx'
 import { initializeAuth, msalInstance } from './auth'
 import './index.css'
 
-await initializeAuth()
+try {
+  await initializeAuth()
+} catch (error) {
+  console.error(
+    'Authentication initialization failed; starting without a signed-in session.',
+    error,
+  )
+}
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
