@@ -12,7 +12,42 @@ class FastModeRoutingTests(unittest.IsolatedAsyncioTestCase):
         rag_request = RagRequest(question="What is indexed?")
 
         self.assertTrue(request.fastMode)
+        self.assertEqual(request.modelMode, "auto")
         self.assertTrue(rag_request.fastMode)
+
+    async def test_model_mode_general_forces_mini(self):
+        router = ModelRouter.__new__(ModelRouter)
+        router.router_model = "gpt-5.4-mini"
+        router._rule_based_route = unittest.mock.Mock()
+        router._call_mini_answer_model = AsyncMock(return_value="General answer")
+
+        response = await router.route_prompt(
+            "Design a production-ready migration plan with rollback criteria.",
+            model_mode="general",
+            fast_mode=True,
+        )
+
+        router._rule_based_route.assert_not_called()
+        router._call_mini_answer_model.assert_awaited_once()
+        self.assertEqual(response.modelUsed, "gpt-5.4-mini")
+        self.assertIn("General mode", response.reason)
+
+    async def test_model_mode_reasoning_forces_pro(self):
+        router = ModelRouter.__new__(ModelRouter)
+        router.reasoning_model = "gpt-5-pro-reasoning"
+        router._rule_based_route = unittest.mock.Mock()
+        router._call_reasoning_model = AsyncMock(return_value="Pro answer")
+
+        response = await router.route_prompt(
+            "What is Azure?",
+            model_mode="reasoning",
+            fast_mode=True,
+        )
+
+        router._rule_based_route.assert_not_called()
+        router._call_reasoning_model.assert_awaited_once()
+        self.assertEqual(response.modelUsed, "gpt-5-pro-reasoning")
+        self.assertIn("Reasoning mode", response.reason)
 
     async def test_fast_mode_uses_mini_for_simple_questions(self):
         router = ModelRouter.__new__(ModelRouter)

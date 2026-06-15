@@ -2,7 +2,12 @@ export const ModelIndicator = ({ modelUsed, reason, metrics }) => {
   if (!modelUsed) return null
 
   const displayReason = reason?.replace(/\s*\(\d+% confidence\)\s*$/i, '')
-  const tokenText = metrics?.totalTokens ? `${metrics.totalTokens} tokens` : null
+  const tokenText = metrics?.totalTokens
+    ? `${metrics.totalTokens} tokens`
+    : null
+  const tokenBreakdown = metrics?.inputTokens || metrics?.outputTokens
+    ? `in ${metrics.inputTokens ?? '?'} / out ${metrics.outputTokens ?? '?'}`
+    : null
   const latencyText = metrics?.latencyMs ? `${(metrics.latencyMs / 1000).toFixed(1)}s` : null
 
   const getModelStyle = (model) => {
@@ -26,7 +31,7 @@ export const ModelIndicator = ({ modelUsed, reason, metrics }) => {
       )}
       {(tokenText || latencyText) && (
         <span className="rounded-full border border-slate-700 bg-slate-900 px-2.5 py-1 text-slate-400">
-          Metrics: {[tokenText, latencyText].filter(Boolean).join(' · ')}
+          Metrics: {[latencyText, tokenText, tokenBreakdown].filter(Boolean).join(' · ')}
         </span>
       )}
     </div>

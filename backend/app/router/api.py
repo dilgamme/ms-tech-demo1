@@ -1,9 +1,10 @@
 from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, Query
 import logging
+import time
 
 from app.memory_service import get_memory_service
 from app.conversation_service import get_conversation_service
-from app.models import RoutingRequest, RoutingResponse, ErrorResponse
+from app.models import RoutingRequest, RoutingResponse, ErrorResponse, ResponseMetrics
 from app.router_logic import get_router
 from app.user_auth import UserIdentity, get_optional_user_identity
 
@@ -16,6 +17,14 @@ def _user_scope(identity: UserIdentity | None, browser_scope: str | None) -> str
     if not scope:
         raise HTTPException(status_code=400, detail="X-Memory-User-ID header is required")
     return scope
+
+
+def _with_latency(result: RoutingResponse, started_at: float) -> RoutingResponse:
+    latency_ms = int((time.monotonic() - started_at) * 1000)
+    metrics = result.metrics.model_dump(exclude_none=True) if result.metrics else {}
+    metrics["latencyMs"] = latency_ms
+    result.metrics = ResponseMetrics(**metrics)
+    return result
 
 @router.post("/routePrompt", response_model=RoutingResponse)
 async def route_prompt(
@@ -30,6 +39,7 @@ async def route_prompt(
     Returns which model was used and the response.
     """
     try:
+        started_at = time.monotonic()
         logger.info(f"Routing prompt: {request.prompt[:100]}...")
         
         router_instance = get_router()
@@ -54,7 +64,9 @@ async def route_prompt(
             request.prompt,
             messages,
             fast_mode=request.fastMode,
+            model_mode=request.modelMode,
         )
+        result = _with_latency(result, started_at)
         conversation_id = await get_conversation_service().append_turn(
             memory_scope,
             request.conversationId,
@@ -85,7 +97,8 @@ async def route_prompt(
 @router.get("/reasoning/{response_id}", response_model=RoutingResponse)
 async def reasoning_response(response_id: str) -> RoutingResponse:
     try:
-        return await get_router().poll_reasoning_response(response_id)
+        started_at = time.monotonic()
+        return _with_latency(await get_router().poll_reasoning_response(response_id), started_at)
     except Exception as exc:
         logger.error("Reasoning poll error: %s", exc, exc_info=True)
         raise HTTPException(status_code=500, detail=f"Error polling reasoning response: {exc}")

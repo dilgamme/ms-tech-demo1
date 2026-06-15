@@ -48,12 +48,13 @@ api.interceptors.response.use(
   },
 )
 
-export const routePrompt = async (prompt, messages = [], conversationId = null) => {
+export const routePrompt = async (prompt, messages = [], conversationId = null, modelMode = 'auto') => {
   try {
     const response = await api.post('/api/routePrompt', {
       prompt,
       messages,
       conversationId,
+      modelMode,
       fastMode: true,
     })
     return response.data

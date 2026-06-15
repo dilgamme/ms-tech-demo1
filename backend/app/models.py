@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import List, Optional
+from typing import List, Literal, Optional
 
 class Message(BaseModel):
     role: str = Field(..., description="'user' or 'assistant'")
@@ -9,10 +9,20 @@ class RoutingRequest(BaseModel):
     prompt: str = Field(..., description="User prompt to route")
     messages: Optional[List[Message]] = Field(default=None, description="Chat history")
     conversationId: Optional[str] = Field(default=None, description="Foundry conversation ID")
+    modelMode: Literal["auto", "reasoning", "general"] = Field(
+        default="auto",
+        description="Model selection mode: auto router, forced reasoning, or forced general model",
+    )
     fastMode: bool = Field(
         default=True,
         description="Use optimized response budgets; retained for API compatibility",
     )
+
+class ResponseMetrics(BaseModel):
+    latencyMs: Optional[int] = Field(default=None, description="End-to-end response latency in milliseconds")
+    inputTokens: Optional[int] = Field(default=None, description="Input/prompt tokens used")
+    outputTokens: Optional[int] = Field(default=None, description="Output/completion tokens used")
+    totalTokens: Optional[int] = Field(default=None, description="Total tokens used")
 
 class RagSource(BaseModel):
     title: str = Field(..., description="Source document title")
@@ -25,6 +35,7 @@ class RoutingResponse(BaseModel):
     reason: str = Field(..., description="Reason for routing to this model")
     answer: str = Field(..., description="The model's response")
     conversationId: Optional[str] = Field(default=None, description="Foundry conversation ID")
+    metrics: Optional[ResponseMetrics] = Field(default=None, description="Latency and token usage metrics")
     sources: List[RagSource] = Field(default_factory=list, description="Grounding sources, when used")
     pendingResponseId: Optional[str] = Field(default=None, description="Background model response ID")
     pending: bool = Field(default=False, description="Whether a background response is still running")

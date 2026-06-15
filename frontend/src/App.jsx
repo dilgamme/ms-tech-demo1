@@ -44,6 +44,7 @@ function App() {
   const [isHistoryLoading, setIsHistoryLoading] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [isRagMode, setIsRagMode] = useState(false)
+  const [modelMode, setModelMode] = useState('auto')
   const [isVoiceActive, setIsVoiceActive] = useState(false)
   const [voiceStatus, setVoiceStatus] = useState('')
   const voiceSocketRef = useRef(null)
@@ -115,6 +116,7 @@ function App() {
           prompt,
           contextMessages,
           activeConversationId,
+          modelMode,
         )
       }
       const assistantMessage = {
@@ -164,6 +166,7 @@ function App() {
               modelUsed: result.modelUsed,
               reason: result.reason,
               sources: result.sources,
+              metrics: result.metrics,
             }
           : msg
       )))
@@ -723,6 +726,8 @@ function App() {
         onToggleVoice={startVoiceSession}
         isRagMode={isRagMode}
         onToggleRag={() => setIsRagMode(prev => !prev)}
+        modelMode={modelMode}
+        onModelModeChange={setModelMode}
         onImageSend={handleImageSelected}
       />
     </div>

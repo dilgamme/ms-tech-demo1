@@ -14,6 +14,17 @@ from app.web_iq_service import get_web_iq_service
 
 logger = logging.getLogger(__name__)
 
+
+class ModelCallResult(str):
+    def __new__(cls, answer: str, metrics: dict | None = None):
+        obj = str.__new__(cls, answer or "")
+        obj.metrics = metrics
+        return obj
+
+    @property
+    def answer(self) -> str:
+        return str(self)
+
 DEEPSEEK_INTENTS = {"translation", "summary"}
 MINI_INTENTS = {
     "analysis",
@@ -439,6 +450,7 @@ class ModelRouter:
         prompt: str,
         messages: list = None,
         fast_mode: bool = False,
+        model_mode: str = "auto",
     ) -> RoutingResponse:
         """
         Main routing logic:
@@ -448,7 +460,11 @@ class ModelRouter:
         """
         
         try:
+            mode = model_mode if model_mode in {"auto", "reasoning", "general"} else "auto"
+
             if (
+                mode == "auto"
+                and
                 settings.SELF_KNOWLEDGE_RAG_ENABLED
                 and settings.AZURE_SEARCH_ENDPOINT
                 and self._contains_any(prompt.strip().lower(), SELF_KNOWLEDGE_PATTERNS)
@@ -473,14 +489,29 @@ class ModelRouter:
                     )
 
             direct_answer = direct_realtime_answer(prompt)
-            if direct_answer:
+            if mode == "auto" and direct_answer:
                 return RoutingResponse(
                     modelUsed="realtime-clock",
                     reason="Direct realtime utility: date/time",
                     answer=direct_answer
                 )
 
-            intent_classification = self._rule_based_route(prompt)
+            if mode == "reasoning":
+                intent_classification = {
+                    "route": "reasoning",
+                    "reason": "User selected Reasoning mode → GPT-5-Pro",
+                    "intent": "reasoning",
+                    "confidence": 1.0,
+                }
+            elif mode == "general":
+                intent_classification = {
+                    "route": "mini",
+                    "reason": "User selected General mode → GPT-5-mini",
+                    "intent": "simple",
+                    "confidence": 1.0,
+                }
+            else:
+                intent_classification = self._rule_based_route(prompt)
             if intent_classification is None:
                 intent_classification = await self._classify_intent(prompt)
             
@@ -524,7 +555,8 @@ class ModelRouter:
                     return RoutingResponse(
                         modelUsed=self.reasoning_model,
                         reason=self._mode_reason(intent_classification["reason"], fast_mode),
-                        answer=response
+                        answer=self._result_answer(response),
+                        metrics=self._result_metrics(response),
                     )
                 except ReasoningResponsePending as pending:
                     return RoutingResponse(
@@ -556,7 +588,8 @@ class ModelRouter:
                             "GPT-5-Pro unavailable/slow, fallback → GPT-5-mini",
                             fast_mode,
                         ),
-                        answer=response
+                        answer=self._result_answer(response),
+                        metrics=self._result_metrics(response),
                     )
             if route == "mini":
                 response = await self._call_mini_answer_model(
@@ -567,7 +600,8 @@ class ModelRouter:
                 return RoutingResponse(
                     modelUsed=self.router_model,
                     reason=self._mode_reason(intent_classification["reason"], fast_mode),
-                    answer=response,
+                    answer=self._result_answer(response),
+                    metrics=self._result_metrics(response),
                 )
 
             if route == "realtime":
@@ -604,7 +638,8 @@ class ModelRouter:
                 return RoutingResponse(
                     modelUsed=self.router_model,
                     reason=self._mode_reason(intent_classification["reason"], fast_mode),
-                    answer=response
+                    answer=self._result_answer(response),
+                    metrics=self._result_metrics(response),
                 )
 
             else:
@@ -616,7 +651,8 @@ class ModelRouter:
                 return RoutingResponse(
                     modelUsed=self.deepseek_model,
                     reason=self._mode_reason(intent_classification["reason"], fast_mode),
-                    answer=response
+                    answer=self._result_answer(response),
+                    metrics=self._result_metrics(response),
                 )
                 
         except asyncio.TimeoutError:
@@ -634,7 +670,8 @@ class ModelRouter:
                         "Selected model timed out, compact fallback → GPT-5-mini",
                         fast_mode,
                     ),
-                    answer=response
+                    answer=self._result_answer(response),
+                    metrics=self._result_metrics(response),
                 )
             except Exception as fallback_error:
                 logger.error(f"Compact fallback model error: {fallback_error}")
@@ -654,7 +691,8 @@ class ModelRouter:
                 return RoutingResponse(
                     modelUsed=self.router_model,
                     reason=self._mode_reason("Fallback after error → GPT-5-mini", fast_mode),
-                    answer=response
+                    answer=self._result_answer(response),
+                    metrics=self._result_metrics(response),
                 )
             except Exception as fallback_error:
                 logger.error(f"Fallback model error: {fallback_error}")
@@ -886,7 +924,7 @@ Return only valid JSON."""
         prompt: str,
         messages: list = None,
         fast_mode: bool = False,
-    ) -> str:
+    ) -> ModelCallResult:
         """Call DeepSeek-V4-Flash model"""
         
         message_list = self._answer_messages(messages, fast_mode)
@@ -901,7 +939,10 @@ Return only valid JSON."""
                 max_completion_tokens=300 if fast_mode else 700,
                 timeout=FAST_MODEL_TIMEOUT_SECONDS
             )
-            return response.choices[0].message.content
+            return ModelCallResult(
+                answer=response.choices[0].message.content,
+                metrics=self._usage_metrics(response),
+            )
         except Exception as e:
             logger.error(f"DeepSeek error: {e}")
             raise
@@ -912,7 +953,7 @@ Return only valid JSON."""
         messages: list = None,
         compact: bool = False,
         fast_mode: bool = False,
-    ) -> str:
+    ) -> ModelCallResult:
         """Call GPT-5-mini as a fast fallback/general answer model."""
 
         max_tokens = 300 if (compact or fast_mode) else 900
@@ -944,14 +985,17 @@ Return only valid JSON."""
             max_completion_tokens=max_tokens,
             timeout=timeout_seconds
         )
-        return response.choices[0].message.content
+        return ModelCallResult(
+            answer=response.choices[0].message.content,
+            metrics=self._usage_metrics(response),
+        )
 
     async def _call_router_model(
         self,
         prompt: str,
         messages: list = None,
         fast_mode: bool = False,
-    ) -> str:
+    ) -> ModelCallResult:
         """Call GPT-5-mini for freshness-sensitive prompts."""
 
         realtime_context = await self._run_blocking(
@@ -992,7 +1036,10 @@ Return only valid JSON."""
                 max_completion_tokens=300 if fast_mode else 500,
                 timeout=FAST_MODEL_TIMEOUT_SECONDS
             )
-            return response.choices[0].message.content
+            return ModelCallResult(
+                answer=response.choices[0].message.content,
+                metrics=self._usage_metrics(response),
+            )
         except Exception as e:
             logger.error(f"Router model error: {e}")
             raise
@@ -1002,7 +1049,7 @@ Return only valid JSON."""
         prompt: str,
         messages: list = None,
         fast_mode: bool = False,
-    ) -> str:
+    ) -> ModelCallResult:
         """Call GPT-5-Pro as a bounded background Response."""
         
         message_list = self._prepare_messages(messages)
@@ -1036,10 +1083,16 @@ Return only valid JSON."""
             while True:
                 status = getattr(response, "status", None)
                 if status == "completed":
-                    return self._extract_response_text(response)
+                    return ModelCallResult(
+                        answer=self._extract_response_text(response),
+                        metrics=self._usage_metrics(response),
+                    )
                 if status == "incomplete":
                     try:
-                        return self._extract_response_text(response)
+                        return ModelCallResult(
+                            answer=self._extract_response_text(response),
+                            metrics=self._usage_metrics(response),
+                        )
                     except ValueError:
                         pass
 
@@ -1105,6 +1158,7 @@ Return only valid JSON."""
                 modelUsed=self.reasoning_model,
                 reason="GPT-5-Pro background reasoning completed",
                 answer=self._extract_response_text(response),
+                metrics=self._usage_metrics(response),
             )
         if status == "incomplete":
             try:
@@ -1112,6 +1166,7 @@ Return only valid JSON."""
                     modelUsed=self.reasoning_model,
                     reason="GPT-5-Pro background reasoning completed with partial output",
                     answer=self._extract_response_text(response),
+                    metrics=self._usage_metrics(response),
                 )
             except ValueError:
                 incomplete_reason = getattr(
@@ -1273,6 +1328,38 @@ Return only valid JSON."""
             return "\n".join(text_parts)
 
         raise ValueError("Responses API returned no text output")
+
+    def _usage_metrics(self, response) -> dict | None:
+        usage = getattr(response, "usage", None)
+        if not usage:
+            return None
+
+        def read(*names):
+            for name in names:
+                value = getattr(usage, name, None)
+                if value is not None:
+                    return value
+            return None
+
+        metrics = {
+            "inputTokens": read("input_tokens", "prompt_tokens"),
+            "outputTokens": read("output_tokens", "completion_tokens"),
+            "totalTokens": read("total_tokens"),
+        }
+        if metrics["totalTokens"] is None:
+            parts = [metrics["inputTokens"], metrics["outputTokens"]]
+            if all(part is not None for part in parts):
+                metrics["totalTokens"] = sum(parts)
+
+        return {key: value for key, value in metrics.items() if value is not None} or None
+
+    @staticmethod
+    def _result_answer(result) -> str:
+        return result.answer if hasattr(result, "answer") else str(result)
+
+    @staticmethod
+    def _result_metrics(result) -> dict | None:
+        return getattr(result, "metrics", None)
 
 # Global router instance
 _router = None
