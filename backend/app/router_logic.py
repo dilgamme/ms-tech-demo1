@@ -398,10 +398,17 @@ MINI_ANSWER_TIMEOUT_SECONDS = 40
 MINI_RETRY_TIMEOUT_SECONDS = 20
 REASONING_CREATE_TIMEOUT_SECONDS = 15
 REASONING_POLL_TIMEOUT_SECONDS = 10
-REASONING_MAX_WAIT_SECONDS = 150
+REASONING_MAX_WAIT_SECONDS = 25
 REASONING_POLL_INTERVAL_SECONDS = 2
 AUTO_PRO_REASONING_SCORE = 6
 AUTO_PRO_MIN_SIGNALS = 4
+
+
+class ReasoningResponsePending(Exception):
+    def __init__(self, response_id: str):
+        self.response_id = response_id
+        super().__init__(f"GPT-5-Pro response is still running: {response_id}")
+
 
 class ModelRouter:
     def __init__(self):
@@ -518,6 +525,17 @@ class ModelRouter:
                         modelUsed=self.reasoning_model,
                         reason=self._mode_reason(intent_classification["reason"], fast_mode),
                         answer=response
+                    )
+                except ReasoningResponsePending as pending:
+                    return RoutingResponse(
+                        modelUsed=self.reasoning_model,
+                        reason=self._mode_reason(
+                            f"{intent_classification['reason']} | GPT-5-Pro background reasoning in progress",
+                            fast_mode,
+                        ),
+                        answer="GPT-5-Pro is still reasoning. The answer will appear here when it finishes.",
+                        pending=True,
+                        pendingResponseId=pending.response_id,
                     )
                 except Exception as reasoning_error:
                     logger.warning(
@@ -1014,22 +1032,54 @@ Return only valid JSON."""
                 raise ValueError("GPT-5-Pro did not return a response ID")
 
             deadline = time.monotonic() + REASONING_MAX_WAIT_SECONDS
+            continued = False
             while True:
                 status = getattr(response, "status", None)
                 if status == "completed":
                     return self._extract_response_text(response)
-                if status in {"failed", "cancelled", "incomplete"}:
+                if status == "incomplete":
+                    try:
+                        return self._extract_response_text(response)
+                    except ValueError:
+                        pass
+
+                    incomplete_reason = getattr(
+                        getattr(response, "incomplete_details", None),
+                        "reason",
+                        None,
+                    )
+                    if incomplete_reason == "max_output_tokens" and not continued:
+                        response = await self._run_blocking(
+                            REASONING_CREATE_TIMEOUT_SECONDS + 5,
+                            self.reasoning_client.responses.create,
+                            model=self.reasoning_model,
+                            previous_response_id=response_id,
+                            input=(
+                                "Now provide the final answer in at most 500 words. "
+                                "Do not continue the analysis. Be decisive and concise."
+                            ),
+                            background=True,
+                            max_output_tokens=4000,
+                            timeout=REASONING_CREATE_TIMEOUT_SECONDS,
+                        )
+                        response_id = getattr(response, "id", None)
+                        if not response_id:
+                            raise ValueError("GPT-5-Pro continuation did not return a response ID")
+                        continued = True
+                        continue
+
+                    raise RuntimeError(
+                        f"GPT-5-Pro background response ended with incomplete: "
+                        f"{getattr(response, 'incomplete_details', None) or 'no details'}"
+                    )
+                if status in {"failed", "cancelled"}:
                     error = getattr(response, "error", None)
-                    incomplete = getattr(response, "incomplete_details", None)
                     raise RuntimeError(
                         f"GPT-5-Pro background response ended with {status}: "
-                        f"{error or incomplete or 'no details'}"
+                        f"{error or 'no details'}"
                     )
                 if time.monotonic() >= deadline:
-                    self._cancel_reasoning_response(response_id)
-                    raise TimeoutError(
-                        f"GPT-5-Pro exceeded the {REASONING_MAX_WAIT_SECONDS}s web budget"
-                    )
+                    raise ReasoningResponsePending(response_id)
 
                 await asyncio.sleep(REASONING_POLL_INTERVAL_SECONDS)
                 response = await self._run_blocking(
@@ -1041,6 +1091,68 @@ Return only valid JSON."""
         except Exception as e:
             logger.error(f"Reasoning model error: {e}")
             raise
+
+    async def poll_reasoning_response(self, response_id: str) -> RoutingResponse:
+        response = await self._run_blocking(
+            REASONING_POLL_TIMEOUT_SECONDS + 2,
+            self.reasoning_client.responses.retrieve,
+            response_id,
+            timeout=REASONING_POLL_TIMEOUT_SECONDS,
+        )
+        status = getattr(response, "status", None)
+        if status == "completed":
+            return RoutingResponse(
+                modelUsed=self.reasoning_model,
+                reason="GPT-5-Pro background reasoning completed",
+                answer=self._extract_response_text(response),
+            )
+        if status == "incomplete":
+            try:
+                return RoutingResponse(
+                    modelUsed=self.reasoning_model,
+                    reason="GPT-5-Pro background reasoning completed with partial output",
+                    answer=self._extract_response_text(response),
+                )
+            except ValueError:
+                incomplete_reason = getattr(
+                    getattr(response, "incomplete_details", None),
+                    "reason",
+                    None,
+                )
+                if incomplete_reason == "max_output_tokens":
+                    continuation = await self._run_blocking(
+                        REASONING_CREATE_TIMEOUT_SECONDS + 5,
+                        self.reasoning_client.responses.create,
+                        model=self.reasoning_model,
+                        previous_response_id=response_id,
+                        input=(
+                            "Now provide the final answer in at most 500 words. "
+                            "Do not continue the analysis. Be decisive and concise."
+                        ),
+                        background=True,
+                        max_output_tokens=4000,
+                        timeout=REASONING_CREATE_TIMEOUT_SECONDS,
+                    )
+                    continuation_id = getattr(continuation, "id", None)
+                    if continuation_id:
+                        return RoutingResponse(
+                            modelUsed=self.reasoning_model,
+                            reason="GPT-5-Pro background reasoning continued for final answer",
+                            answer="GPT-5-Pro finished its analysis and is preparing the final answer.",
+                            pending=True,
+                            pendingResponseId=continuation_id,
+                        )
+                raise RuntimeError(f"GPT-5-Pro ended incomplete: {getattr(response, 'incomplete_details', None)}")
+        if status in {"failed", "cancelled"}:
+            raise RuntimeError(f"GPT-5-Pro background response ended with {status}: {getattr(response, 'error', None)}")
+
+        return RoutingResponse(
+            modelUsed=self.reasoning_model,
+            reason=f"GPT-5-Pro background reasoning is {status or 'running'}",
+            answer="GPT-5-Pro is still reasoning. The answer will appear here when it finishes.",
+            pending=True,
+            pendingResponseId=response_id,
+        )
 
     def _cancel_reasoning_response(self, response_id: str) -> None:
         try:

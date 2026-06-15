@@ -82,6 +82,15 @@ async def route_prompt(
         )
 
 
+@router.get("/reasoning/{response_id}", response_model=RoutingResponse)
+async def reasoning_response(response_id: str) -> RoutingResponse:
+    try:
+        return await get_router().poll_reasoning_response(response_id)
+    except Exception as exc:
+        logger.error("Reasoning poll error: %s", exc, exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Error polling reasoning response: {exc}")
+
+
 @router.get("/memory/status")
 async def memory_status() -> dict:
     return await get_memory_service().status()

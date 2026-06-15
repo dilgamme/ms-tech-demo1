@@ -106,6 +106,39 @@ class FastModeRoutingTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(retrieve.call_count, 2)
         retrieve.assert_called_with("resp_reasoning", timeout=10)
 
+    async def test_reasoning_model_continues_after_reasoning_uses_token_budget(self):
+        router = ModelRouter.__new__(ModelRouter)
+        queued = SimpleNamespace(id="resp_reasoning", status="queued")
+        incomplete = SimpleNamespace(
+            id="resp_reasoning",
+            status="incomplete",
+            output_text=None,
+            output=[],
+            incomplete_details=SimpleNamespace(reason="max_output_tokens"),
+        )
+        continuation = SimpleNamespace(id="resp_answer", status="queued")
+        completed = SimpleNamespace(
+            id="resp_answer",
+            status="completed",
+            output_text="Final Pro answer",
+        )
+        create = unittest.mock.Mock(side_effect=[queued, continuation])
+        retrieve = unittest.mock.Mock(side_effect=[incomplete, completed])
+        router.reasoning_client = SimpleNamespace(
+            responses=SimpleNamespace(create=create, retrieve=retrieve),
+        )
+        router.reasoning_model = "gpt-5-pro-reasoning"
+
+        with unittest.mock.patch("app.router_logic.asyncio.sleep", new=AsyncMock()):
+            answer = await router._call_reasoning_model("Analyze this deeply", fast_mode=True)
+
+        self.assertEqual(answer, "Final Pro answer")
+        self.assertEqual(create.call_count, 2)
+        continuation_call = create.call_args_list[1].kwargs
+        self.assertEqual(continuation_call["previous_response_id"], "resp_reasoning")
+        self.assertTrue(continuation_call["background"])
+        self.assertEqual(continuation_call["max_output_tokens"], 4000)
+
 
 if __name__ == "__main__":
     unittest.main()

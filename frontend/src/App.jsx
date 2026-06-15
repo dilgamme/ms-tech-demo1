@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useIsAuthenticated, useMsal } from '@azure/msal-react'
 import { loginRequest, logoutRequest, msalEnabled } from './auth'
-import { analyzeImage, deleteConversation, generateImage, getConversation, listConversations, ragPrompt, routePrompt } from './services/api'
+import { analyzeImage, deleteConversation, generateImage, getConversation, getReasoningResponse, listConversations, ragPrompt, routePrompt } from './services/api'
 import { createPcmPlayer, createPcmRecorder, createVoiceLiveSocket } from './services/voiceLive'
 import { MessageList } from './components/MessageList'
 import { ChatInput } from './components/ChatInput'
@@ -128,6 +128,9 @@ function App() {
         sources: response.sources,
       }
       setMessages(prev => [...prev, assistantMessage])
+      if (response.pendingResponseId) {
+        pollPendingReasoning(assistantMessage.id, response.pendingResponseId)
+      }
       if (response.conversationId) {
         setActiveConversationId(response.conversationId)
         setIsLoading(false)
@@ -143,6 +146,39 @@ function App() {
     } finally {
       setIsLoading(false)
     }
+  }
+
+  const pollPendingReasoning = async (messageId, responseId) => {
+    let currentResponseId = responseId
+    for (let attempt = 0; attempt < 72; attempt += 1) {
+      await new Promise(resolve => setTimeout(resolve, 5000))
+      const result = await getReasoningResponse(currentResponseId)
+      if (result.pendingResponseId) {
+        currentResponseId = result.pendingResponseId
+      }
+      setMessages(prev => prev.map(msg => (
+        msg.id === messageId
+          ? {
+              ...msg,
+              content: result.answer,
+              modelUsed: result.modelUsed,
+              reason: result.reason,
+              sources: result.sources,
+            }
+          : msg
+      )))
+      if (!result.pending) {
+        return
+      }
+    }
+    setMessages(prev => prev.map(msg => (
+      msg.id === messageId
+        ? {
+            ...msg,
+            content: `${msg.content}\n\nGPT-5-Pro is still running. Please try again in a moment.`,
+          }
+        : msg
+    )))
   }
 
   const handleImageSelected = async (file, prompt) => {

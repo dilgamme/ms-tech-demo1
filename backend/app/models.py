@@ -26,6 +26,8 @@ class RoutingResponse(BaseModel):
     answer: str = Field(..., description="The model's response")
     conversationId: Optional[str] = Field(default=None, description="Foundry conversation ID")
     sources: List[RagSource] = Field(default_factory=list, description="Grounding sources, when used")
+    pendingResponseId: Optional[str] = Field(default=None, description="Background model response ID")
+    pending: bool = Field(default=False, description="Whether a background response is still running")
 
 class RagRequest(BaseModel):
     question: str = Field(..., description="Question to answer using indexed RAG documents")

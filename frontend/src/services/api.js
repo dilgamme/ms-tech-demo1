@@ -63,6 +63,11 @@ export const routePrompt = async (prompt, messages = [], conversationId = null) 
   }
 }
 
+export const getReasoningResponse = async (responseId) => {
+  const response = await api.get(`/api/reasoning/${responseId}`)
+  return response.data
+}
+
 export const listConversations = async () => {
   const response = await api.get('/api/conversations')
   return response.data.conversations
