@@ -564,8 +564,9 @@ Validated on 2026-06-02:
   for this project endpoint.
 - App Service `B1` deployment cold starts are slow because Oryx packages and extracts
   Python dependencies. Deployments can take several minutes.
-- `gpt-5-pro-reasoning` can exceed the demo request window; use it only for explicit
-  Pro prompts.
+- `gpt-5-pro-reasoning` uses a background Foundry Response that the backend polls
+  within a bounded request budget. Explicit Pro and compound high-complexity prompts
+  use this path, with a compact GPT-5-mini fallback if Pro does not finish in time.
 - The conversation sidebar is desktop-first and hidden below the `md` breakpoint.
 - Anonymous visitors retain a browser UUID. Signed-in users receive identity-bound
   ownership scopes.

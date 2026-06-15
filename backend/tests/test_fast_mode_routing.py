@@ -54,10 +54,14 @@ class FastModeRoutingTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_reasoning_model_uses_dedicated_client(self):
         router = ModelRouter.__new__(ModelRouter)
-        response = SimpleNamespace(output_text="Reasoned answer")
+        response = SimpleNamespace(
+            id="resp_completed",
+            status="completed",
+            output_text="Reasoned answer",
+        )
         create = unittest.mock.Mock(return_value=response)
         router.reasoning_client = SimpleNamespace(
-            responses=SimpleNamespace(create=create),
+            responses=SimpleNamespace(create=create, retrieve=unittest.mock.Mock()),
         )
         router.reasoning_model = "gpt-5-pro-reasoning"
 
@@ -68,32 +72,39 @@ class FastModeRoutingTests(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual(answer, "Reasoned answer")
         self.assertEqual(create.call_args.kwargs["model"], "gpt-5-pro-reasoning")
-        self.assertEqual(create.call_args.kwargs["max_output_tokens"], 1200)
-        self.assertEqual(create.call_args.kwargs["timeout"], 150)
+        self.assertTrue(create.call_args.kwargs["background"])
+        self.assertEqual(create.call_args.kwargs["max_output_tokens"], 3000)
+        self.assertEqual(create.call_args.kwargs["timeout"], 15)
 
-    async def test_reasoning_model_continues_after_reasoning_only_response(self):
+    async def test_reasoning_model_polls_background_response_until_complete(self):
         router = ModelRouter.__new__(ModelRouter)
-        analysis = SimpleNamespace(
+        queued = SimpleNamespace(
             id="resp_reasoning",
-            output_text=None,
-            output=[],
-            incomplete_details=SimpleNamespace(reason="max_output_tokens"),
+            status="queued",
         )
-        answer_response = SimpleNamespace(output_text="Final Pro answer")
-        create = unittest.mock.Mock(side_effect=[analysis, answer_response])
+        in_progress = SimpleNamespace(
+            id="resp_reasoning",
+            status="in_progress",
+        )
+        completed = SimpleNamespace(
+            id="resp_reasoning",
+            status="completed",
+            output_text="Final Pro answer",
+        )
+        create = unittest.mock.Mock(return_value=queued)
+        retrieve = unittest.mock.Mock(side_effect=[in_progress, completed])
         router.reasoning_client = SimpleNamespace(
-            responses=SimpleNamespace(create=create),
+            responses=SimpleNamespace(create=create, retrieve=retrieve),
         )
         router.reasoning_model = "gpt-5-pro-reasoning"
 
-        answer = await router._call_reasoning_model("Analyze this deeply", fast_mode=True)
+        with unittest.mock.patch("app.router_logic.asyncio.sleep", new=AsyncMock()):
+            answer = await router._call_reasoning_model("Analyze this deeply", fast_mode=True)
 
         self.assertEqual(answer, "Final Pro answer")
-        self.assertEqual(create.call_count, 2)
-        continuation = create.call_args_list[1].kwargs
-        self.assertEqual(continuation["previous_response_id"], "resp_reasoning")
-        self.assertEqual(continuation["max_output_tokens"], 3000)
-        self.assertEqual(continuation["timeout"], 120)
+        self.assertEqual(create.call_count, 1)
+        self.assertEqual(retrieve.call_count, 2)
+        retrieve.assert_called_with("resp_reasoning", timeout=10)
 
 
 if __name__ == "__main__":

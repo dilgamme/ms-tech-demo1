@@ -173,6 +173,10 @@ a mode switch.
 | Explicit deep/pro request or compound production architecture/migration task | GPT-5-Pro | High-effort reasoning with longer latency |
 | Ambiguous or low-confidence classification | GPT-5-mini | GPT-5-mini classifier and safe default |
 
+GPT-5-Pro runs through the Foundry Responses API in background mode. The backend
+polls within a bounded web-request budget and uses a compact mini fallback if Pro
+does not finish in time.
+
 ## 🔐 Security
 
 - ✅ No API keys in code

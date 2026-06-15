@@ -2,6 +2,7 @@ import asyncio
 import json
 import logging
 import re
+import time
 from openai import OpenAI
 from app.azure_auth import get_foundry_api_key, get_openai_api_key
 from app.config import settings
@@ -395,8 +396,10 @@ CLASSIFIER_TIMEOUT_SECONDS = 10
 FAST_MODEL_TIMEOUT_SECONDS = 15
 MINI_ANSWER_TIMEOUT_SECONDS = 40
 MINI_RETRY_TIMEOUT_SECONDS = 20
-REASONING_ANALYSIS_TIMEOUT_SECONDS = 150
-REASONING_ANSWER_TIMEOUT_SECONDS = 120
+REASONING_CREATE_TIMEOUT_SECONDS = 15
+REASONING_POLL_TIMEOUT_SECONDS = 10
+REASONING_MAX_WAIT_SECONDS = 150
+REASONING_POLL_INTERVAL_SECONDS = 2
 AUTO_PRO_REASONING_SCORE = 6
 AUTO_PRO_MIN_SIGNALS = 4
 
@@ -525,6 +528,7 @@ class ModelRouter:
                     response = await self._call_mini_answer_model(
                         prompt,
                         messages,
+                        compact=True,
                         fast_mode=fast_mode,
                     )
                     return RoutingResponse(
@@ -981,14 +985,14 @@ Return only valid JSON."""
         messages: list = None,
         fast_mode: bool = False,
     ) -> str:
-        """Call GPT-5-Pro through a Responses-capable Azure OpenAI endpoint."""
+        """Call GPT-5-Pro as a bounded background Response."""
         
         message_list = self._prepare_messages(messages)
         message_list.append({"role": "user", "content": prompt})
         
         try:
             response = await self._run_blocking(
-                REASONING_ANALYSIS_TIMEOUT_SECONDS + 5,
+                REASONING_CREATE_TIMEOUT_SECONDS + 5,
                 self.reasoning_client.responses.create,
                 model=self.reasoning_model,
                 input=message_list,
@@ -1001,37 +1005,51 @@ Return only valid JSON."""
                         else ""
                     )
                 ),
-                max_output_tokens=1200,
-                timeout=REASONING_ANALYSIS_TIMEOUT_SECONDS,
-            )
-            try:
-                return self._extract_response_text(response)
-            except ValueError:
-                response_id = getattr(response, "id", None)
-                incomplete_reason = getattr(
-                    getattr(response, "incomplete_details", None),
-                    "reason",
-                    None,
-                )
-                if not response_id or incomplete_reason != "max_output_tokens":
-                    raise
-
-            continuation = await self._run_blocking(
-                REASONING_ANSWER_TIMEOUT_SECONDS + 5,
-                self.reasoning_client.responses.create,
-                model=self.reasoning_model,
-                previous_response_id=response_id,
-                input=(
-                    "Now provide the final answer in at most 500 words. "
-                    "Do not continue the analysis. Be decisive and concise."
-                ),
+                background=True,
                 max_output_tokens=3000,
-                timeout=REASONING_ANSWER_TIMEOUT_SECONDS,
+                timeout=REASONING_CREATE_TIMEOUT_SECONDS,
             )
-            return self._extract_response_text(continuation)
+            response_id = getattr(response, "id", None)
+            if not response_id:
+                raise ValueError("GPT-5-Pro did not return a response ID")
+
+            deadline = time.monotonic() + REASONING_MAX_WAIT_SECONDS
+            while True:
+                status = getattr(response, "status", None)
+                if status == "completed":
+                    return self._extract_response_text(response)
+                if status in {"failed", "cancelled", "incomplete"}:
+                    error = getattr(response, "error", None)
+                    incomplete = getattr(response, "incomplete_details", None)
+                    raise RuntimeError(
+                        f"GPT-5-Pro background response ended with {status}: "
+                        f"{error or incomplete or 'no details'}"
+                    )
+                if time.monotonic() >= deadline:
+                    self._cancel_reasoning_response(response_id)
+                    raise TimeoutError(
+                        f"GPT-5-Pro exceeded the {REASONING_MAX_WAIT_SECONDS}s web budget"
+                    )
+
+                await asyncio.sleep(REASONING_POLL_INTERVAL_SECONDS)
+                response = await self._run_blocking(
+                    REASONING_POLL_TIMEOUT_SECONDS + 2,
+                    self.reasoning_client.responses.retrieve,
+                    response_id,
+                    timeout=REASONING_POLL_TIMEOUT_SECONDS,
+                )
         except Exception as e:
             logger.error(f"Reasoning model error: {e}")
             raise
+
+    def _cancel_reasoning_response(self, response_id: str) -> None:
+        try:
+            self.reasoning_client.responses.cancel(
+                response_id,
+                timeout=REASONING_POLL_TIMEOUT_SECONDS,
+            )
+        except Exception as cancel_error:
+            logger.warning("Could not cancel GPT-5-Pro response %s: %s", response_id, cancel_error)
 
     async def _run_blocking(self, timeout_seconds: int, func, *args, **kwargs):
         return await asyncio.wait_for(
