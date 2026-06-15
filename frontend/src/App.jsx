@@ -5,6 +5,7 @@ import { analyzeImage, deleteConversation, generateImage, getConversation, listC
 import { createPcmPlayer, createPcmRecorder, createVoiceLiveSocket } from './services/voiceLive'
 import { MessageList } from './components/MessageList'
 import { ChatInput } from './components/ChatInput'
+import { isImageGenerationPrompt } from './utils/imageIntent'
 import './index.css'
 
 const MAX_CONTEXT_MESSAGES = 6
@@ -13,12 +14,6 @@ const VOICE_MODEL = 'Azure-Speech-Voice-Live'
 const VOICE_REASON = 'Microphone input -> Voice Live realtime session'
 
 const createMessageId = () => `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`
-
-const isImageGenerationPrompt = (prompt = '') => (
-  /\b(create|generate|draw|make|design|illustrate)\b.*\b(image|picture|photo|logo|poster|diagram|illustration)\b/i.test(prompt)
-  || /^\s*(create|generate|draw|make|design|illustrate)\b/i.test(prompt)
-  || /\b(image|picture|photo|logo|poster|diagram|illustration)\b.*\b(of|showing|with)\b/i.test(prompt)
-)
 
 const readImageAsDataUrl = (file) => new Promise((resolve, reject) => {
   const reader = new FileReader()
