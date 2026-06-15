@@ -341,6 +341,8 @@ MINI_ANSWER_TIMEOUT_SECONDS = 40
 MINI_RETRY_TIMEOUT_SECONDS = 20
 REASONING_ANALYSIS_TIMEOUT_SECONDS = 150
 REASONING_ANSWER_TIMEOUT_SECONDS = 120
+AUTO_PRO_REASONING_SCORE = 6
+AUTO_PRO_MIN_SIGNALS = 4
 
 class ModelRouter:
     def __init__(self):
@@ -629,6 +631,17 @@ class ModelRouter:
             }
 
         reasoning_score, reasoning_signals = self._reasoning_score(text)
+        if self._should_auto_route_to_pro(reasoning_score, reasoning_signals):
+            return {
+                "route": "reasoning",
+                "reason": (
+                    "Rule match: high-complexity multi-step reasoning → GPT-5-Pro "
+                    f"({', '.join(reasoning_signals[:4])})"
+                ),
+                "intent": "reasoning",
+                "confidence": min(0.98, 0.78 + (reasoning_score * 0.025)),
+            }
+
         if reasoning_score >= 2:
             return {
                 "route": "mini",
@@ -694,7 +707,9 @@ Rules:
 - Simple factual questions, definitions, explanations, writing, extraction, transformation, and conversation: mini
 - Current/latest/real-time/live-data questions, including news, prices, weather, sports scores, recent events, or anything where freshness matters: realtime
 - Interactive analysis, architecture, planning, debugging, math/logic, code generation, code review, and optimization: mini
-- Use reasoning only if the user explicitly asks for pro, deep reasoning, highest quality, or to take extra time
+- Use reasoning for exceptionally complex, multi-step tasks with several independent signals such as architecture,
+  constraints/tradeoffs, technical artifacts, math/logic, many requirements, and substantial prompt length.
+- Also use reasoning if the user explicitly asks for pro, deep reasoning, highest quality, or to take extra time.
 
 Return only valid JSON."""
 
@@ -719,6 +734,11 @@ Return only valid JSON."""
             intent = classification.get("intent", "simple")
             confidence = float(classification.get("confidence", 0.0))
             explicit_pro = self._contains_any(prompt.lower(), EXPLICIT_PRO_PATTERNS)
+            reasoning_score, reasoning_signals = self._reasoning_score(prompt.lower())
+            automatic_pro = self._should_auto_route_to_pro(
+                reasoning_score,
+                reasoning_signals,
+            )
             selected_route = route
             if intent in MINI_INTENTS:
                 selected_route = "mini"
@@ -726,7 +746,7 @@ Return only valid JSON."""
                 selected_route = "realtime"
             if intent in DEEPSEEK_INTENTS:
                 selected_route = "deepseek"
-            if explicit_pro:
+            if explicit_pro or automatic_pro:
                 selected_route = "reasoning"
             elif selected_route == "reasoning" or confidence < 0.65:
                 selected_route = "mini"
@@ -751,7 +771,9 @@ Return only valid JSON."""
             }
             
             reason = reason_map.get(intent)
-            if confidence < 0.65:
+            if automatic_pro and not explicit_pro:
+                reason = "Classifier guard: high-complexity multi-step reasoning → GPT-5-Pro"
+            if confidence < 0.65 and not (explicit_pro or automatic_pro):
                 reason = "Classifier: low-confidence safe default → GPT-5-mini"
             if not reason:
                 route_labels = {
@@ -998,6 +1020,10 @@ Return only valid JSON."""
             signals.append("high prompt complexity")
 
         return score, signals
+
+    @staticmethod
+    def _should_auto_route_to_pro(score: int, signals: list[str]) -> bool:
+        return score >= AUTO_PRO_REASONING_SCORE and len(signals) >= AUTO_PRO_MIN_SIGNALS
 
     def _answer_messages(self, messages: list | None, fast_mode: bool) -> list[dict]:
         prepared = self._prepare_messages(messages)

@@ -170,7 +170,7 @@ a mode switch.
 | Simple questions, writing, extraction, and conversation | GPT-5-mini | Fast general-purpose route |
 | Live data | GPT-5-mini + retrieved context | Freshness-aware response |
 | Planning, analysis, math, and code | GPT-5-mini | Deterministic complexity rules |
-| Explicit deep/pro request | GPT-5-Pro | High-effort reasoning with longer latency |
+| Explicit deep/pro request or exceptionally complex multi-step task | GPT-5-Pro | High-effort reasoning with longer latency |
 | Ambiguous or low-confidence classification | GPT-5-mini | GPT-5-mini classifier and safe default |
 
 ## 🔐 Security

@@ -24,6 +24,30 @@ class ReasoningRoutingTests(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual(route["route"], "mini")
 
+    def test_high_complexity_prompt_automatically_routes_to_pro(self):
+        route = self.router._rule_based_route(
+            """
+            Design a multi-region Kubernetes platform and compare active-active
+            with active-passive deployment. It must preserve strong consistency,
+            support regional failover, minimize cost, and handle network partitions.
+
+            1. Provide the target architecture and migration plan.
+            2. Analyze failure modes and operational tradeoffs.
+            3. Include Terraform and Kubernetes implementation considerations.
+            4. Recommend the best approach and justify the decision.
+            """
+        )
+
+        self.assertEqual(route["route"], "reasoning")
+        self.assertIn("high-complexity", route["reason"])
+
+    def test_typical_architecture_prompt_remains_on_mini(self):
+        route = self.router._rule_based_route(
+            "Design a high availability architecture for a customer API with failover."
+        )
+
+        self.assertEqual(route["route"], "mini")
+
     def test_math_and_logic_routes_to_mini(self):
         route = self.router._rule_based_route(
             "Solve 24 / 6 + 7 and explain the reasoning."
@@ -114,6 +138,40 @@ class ReasoningRoutingTests(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual(classification["route"], "mini")
         self.assertIn("low-confidence", classification["reason"])
+
+    async def test_automatic_pro_guard_overrides_low_classifier_confidence(self):
+        completion = SimpleNamespace(
+            choices=[
+                SimpleNamespace(
+                    message=SimpleNamespace(
+                        content=(
+                            '{"intent":"planning","confidence":0.42,'
+                            '"route":"mini","reason":"uncertain"}'
+                        )
+                    )
+                )
+            ]
+        )
+        self.router.router_model = "gpt-5.4-mini"
+        self.router.client = SimpleNamespace(
+            chat=SimpleNamespace(
+                completions=SimpleNamespace(create=unittest.mock.Mock(return_value=completion))
+            )
+        )
+        prompt = """
+        Design a multi-region Kubernetes platform and compare active-active with
+        active-passive. It must preserve consistency and handle network partitions.
+
+        1. Analyze failure modes and tradeoffs.
+        2. Provide a migration plan.
+        3. Include Terraform and Kubernetes implementation details.
+        4. Recommend and justify the best architecture for these requirements.
+        """
+
+        classification = await self.router._classify_intent(prompt)
+
+        self.assertEqual(classification["route"], "reasoning")
+        self.assertIn("GPT-5-Pro", classification["reason"])
 
     async def test_classifier_failure_defaults_to_mini(self):
         self.router.router_model = "gpt-5.4-mini"
