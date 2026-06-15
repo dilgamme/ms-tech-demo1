@@ -14,8 +14,8 @@ The demo shows an Azure-native AI application architecture with:
 - A VNet-integrated Python API on Azure App Service.
 - Microsoft account sign-in with optional anonymous demo access.
 - Managed identity for Azure service-to-service authentication.
-- Hybrid multi-model routing with deterministic rules and the managed Microsoft
-  Foundry `model-router`.
+- Hybrid multi-model routing with broad deterministic rules and a GPT-5-mini
+  classifier for unmatched prompts.
 - Cost-optimized retrieval-augmented generation (RAG) using free-tier Azure AI
   Search with manual indexing.
 - Voice Live support through the backend WebSocket proxy.
@@ -34,7 +34,7 @@ The demo shows an Azure-native AI application architecture with:
 | App Service backend | Active | HTTPS API, VNet-integrated |
 | Microsoft account sign-in | Active | Personal Microsoft and organizational Entra accounts |
 | Anonymous access | Active | Retained for demo visitors |
-| Hybrid model routing | Active | Deterministic rules plus managed `model-router` |
+| Hybrid model routing | Active | Deterministic rules plus GPT-5-mini classification |
 | RAG | Active | Free-tier Azure AI Search, manually indexed |
 | Voice Live | Active | Browser microphone proxied through App Service |
 | Text translation | Active | Azure AI Translator through the public AI Services endpoint |
@@ -72,7 +72,6 @@ flowchart TB
     end
 
     subgraph FoundrySE["Microsoft Foundry - Sweden Central"]
-        Router[Managed model-router deployment]
         ImageGen[gpt-image-1-mini<br/>Image generation]
     end
 
@@ -94,7 +93,6 @@ flowchart TB
     Project --> Conversations
     Project -. disabled preview path .-> Memory
 
-    API -->|Managed identity over public HTTPS| Router
     API -->|Managed identity over public HTTPS| ImageGen
 
     API -->|API key over HTTPS<br/>Free tier public endpoint| Search
@@ -107,7 +105,7 @@ flowchart TB
     classDef private fill:#dcfce7,stroke:#16a34a,color:#14532d
     classDef disabled fill:#f3f4f6,stroke:#6b7280,color:#374151,stroke-dasharray: 5 5
     class User,SWA,Entra public
-    class API,Reserved,Project,Models,Conversations,Router,ImageGen,Search,Blob,KV,Insights private
+    class API,Reserved,Project,Models,Conversations,ImageGen,Search,Blob,KV,Insights private
     class Memory disabled
 ```
 
@@ -251,16 +249,16 @@ Foundry AIServices account: `ms-tech-demo-resource-we`
 | `DeepSeek-V4-Flash` | `DeepSeek-V4-Flash` | `2026-04-23` | 20 |
 | `text-embedding-3-small` | `text-embedding-3-small` | `1` | 10 |
 
-### 7.2 Sweden Central Managed Router
+### 7.2 Sweden Central Image Resource
 
 Foundry AIServices account: `ms-tech-demo1-router-se`
 
-| Deployment | Version | SKU | Capacity |
-|------------|---------|-----|----------|
-| `model-router` | `2025-11-18` | `GlobalStandard` | 10 |
-| `gpt-image-1-mini` | `2025-10-06` | `GlobalStandard` | 1 |
+| Deployment | Version | SKU | Capacity | Application use |
+|------------|---------|-----|----------|-----------------|
+| `model-router` | `2025-11-18` | `GlobalStandard` | 10 | Retained but skipped by text routing |
+| `gpt-image-1-mini` | `2025-10-06` | `GlobalStandard` | 1 | Active image generation |
 
-The router/image account currently uses its public Azure HTTPS endpoint. Managed
+The image account currently uses its public Azure HTTPS endpoint. Managed
 identity and service authentication remain enabled.
 
 ### 7.3 Image Modules
@@ -287,12 +285,10 @@ flowchart TD
     Rules -->|Explicit Pro request| Pro[gpt-5-pro-reasoning]
     Rules -->|Realtime query| Realtime[gpt-5.4-mini + fetched context]
     Rules -->|Reasoning/code/math/planning| Mini[gpt-5.4-mini]
-    Rules -->|General interactive| Managed[Managed model-router]
+    Rules -->|General interactive| Mini
     Rules -->|No confident rule| Classifier[gpt-5.4-mini classifier]
     Classifier -->|Reasoning intent| Mini
-    Classifier -->|General/low confidence| Managed
-    Managed -->|Success| Selected[Return selected underlying model]
-    Managed -->|Unavailable or slow| Mini
+    Classifier -->|General/low confidence| Mini
     Pro -->|Unavailable or slow| Mini
 ```
 
@@ -303,10 +299,10 @@ Routing summary:
 | Translation | `DeepSeek-V4-Flash` |
 | Summary | `DeepSeek-V4-Flash` |
 | Explicit deep reasoning request | `gpt-5-pro-reasoning` |
-| Analysis, code, math, architecture, and planning | `gpt-5.4-mini` pre-router reasoning route |
+| Analysis, code, math, architecture, and planning | `gpt-5.4-mini` complexity route |
 | Realtime query | `gpt-5.4-mini` with fetched external context |
-| General interactive query | Managed Foundry `model-router` |
-| Managed router failure | `gpt-5.4-mini` fallback |
+| General interactive query | `gpt-5.4-mini` |
+| Unmatched or low-confidence prompt | GPT-5-mini classifier/default |
 
 The UI displays the selected model and routing explanation below each answer.
 The application always requests concise responses with optimized generation
@@ -476,8 +472,7 @@ The backend keeps Voice Live credentials off the public browser.
 | `USE_MANAGED_IDENTITY` | `true` | Use App Service managed identity |
 | `AZURE_OPENAI_ENDPOINT` | `https://ms-tech-demo-resource-we.cognitiveservices.azure.com/` | Main model endpoint |
 | `REASONING_ENDPOINT` | `https://ms-tech-demo-resource-we.services.ai.azure.com/api/projects/ms-tech-demo1` | GPT-5-Pro endpoint in the West Europe `ms-tech-demo1` Foundry project |
-| `FOUNDRY_ROUTER_ENDPOINT` | `https://ms-tech-demo1-router-se.cognitiveservices.azure.com/` | Managed router endpoint |
-| `FOUNDRY_ROUTER_MODEL` | `model-router` | Managed router deployment |
+| `IMAGE_OPENAI_ENDPOINT` | `https://ms-tech-demo1-router-se.cognitiveservices.azure.com/` | Sweden Central image generation endpoint |
 | `FOUNDRY_PROJECT_ENDPOINT` | `https://ms-tech-demo-resource-we.services.ai.azure.com/api/projects/ms-tech-demo1` | Conversations and Memory Store API |
 | `FOUNDRY_CONVERSATIONS_ENABLED` | `true` | Persist server-side chat conversations |
 | `MEMORY_STORE_ENABLED` | `false` | Disable preview placeholder context |
@@ -550,7 +545,8 @@ Validated on 2026-06-02:
 - Static Web App returned `200`.
 - Backend health returned `{"status":"ok","service":"mstech-router"}`.
 - App Service used managed identity for Foundry calls.
-- Managed `model-router` selected underlying models successfully.
+- The legacy managed `model-router` deployment was validated before text routing
+  switched to deterministic rules plus GPT-5-mini classification.
 - CORS allowed the Static Web App origin for authenticated conversation calls.
 - Foundry conversation creation returned a real `conv_...` ID.
 - Foundry conversation list returned the created record.

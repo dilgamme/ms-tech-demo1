@@ -9,13 +9,13 @@ class ReasoningRoutingTests(unittest.IsolatedAsyncioTestCase):
     def setUp(self):
         self.router = ModelRouter.__new__(ModelRouter)
 
-    def test_code_debugging_routes_to_mini_before_foundry_router(self):
+    def test_code_debugging_routes_to_mini(self):
         route = self.router._rule_based_route(
             "Debug this Python exception and identify the root cause."
         )
 
         self.assertEqual(route["route"], "mini")
-        self.assertIn("Pre-router reasoning gate", route["reason"])
+        self.assertIn("complex reasoning", route["reason"])
 
     def test_architecture_planning_routes_to_mini(self):
         route = self.router._rule_based_route(
@@ -31,10 +31,10 @@ class ReasoningRoutingTests(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual(route["route"], "mini")
 
-    def test_simple_question_still_uses_managed_router(self):
+    def test_simple_question_uses_mini(self):
         route = self.router._rule_based_route("What is Azure?")
 
-        self.assertEqual(route["route"], "router")
+        self.assertEqual(route["route"], "mini")
         self.assertEqual(route["intent"], "simple")
 
     def test_explicit_pro_request_keeps_pro_route(self):
@@ -49,20 +49,18 @@ class ReasoningRoutingTests(unittest.IsolatedAsyncioTestCase):
             "Analyze today's stock price and explain the likely drivers."
         )
 
-        self.assertEqual(route["route"], "router")
+        self.assertEqual(route["route"], "realtime")
         self.assertEqual(route["intent"], "realtime")
 
-    async def test_mini_route_does_not_call_foundry_router(self):
+    async def test_mini_route_calls_mini_answer_model(self):
         self.router.router_model = "gpt-5.4-mini"
         self.router._call_mini_answer_model = AsyncMock(return_value="Reasoned answer")
-        self.router._call_foundry_router_model = AsyncMock()
 
         response = await self.router.route_prompt(
             "Compare options and recommend the best approach."
         )
 
         self.router._call_mini_answer_model.assert_awaited_once()
-        self.router._call_foundry_router_model.assert_not_awaited()
         self.assertEqual(response.modelUsed, "gpt-5.4-mini")
 
     async def test_classifier_reasoning_intent_maps_to_mini(self):
@@ -72,7 +70,7 @@ class ReasoningRoutingTests(unittest.IsolatedAsyncioTestCase):
                     message=SimpleNamespace(
                         content=(
                             '{"intent":"planning","confidence":0.91,'
-                            '"route":"router","reason":"planning task"}'
+                            '"route":"mini","reason":"planning task"}'
                         )
                     )
                 )
@@ -91,6 +89,104 @@ class ReasoningRoutingTests(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual(classification["route"], "mini")
         self.assertIn("GPT-5-mini", classification["reason"])
+
+    async def test_low_confidence_classifier_defaults_to_mini(self):
+        completion = SimpleNamespace(
+            choices=[
+                SimpleNamespace(
+                    message=SimpleNamespace(
+                        content=(
+                            '{"intent":"unknown","confidence":0.31,'
+                            '"route":"reasoning","reason":"uncertain"}'
+                        )
+                    )
+                )
+            ]
+        )
+        self.router.router_model = "gpt-5.4-mini"
+        self.router.client = SimpleNamespace(
+            chat=SimpleNamespace(
+                completions=SimpleNamespace(create=unittest.mock.Mock(return_value=completion))
+            )
+        )
+
+        classification = await self.router._classify_intent("An ambiguous request")
+
+        self.assertEqual(classification["route"], "mini")
+        self.assertIn("low-confidence", classification["reason"])
+
+    async def test_classifier_failure_defaults_to_mini(self):
+        self.router.router_model = "gpt-5.4-mini"
+        self.router.client = SimpleNamespace(
+            chat=SimpleNamespace(
+                completions=SimpleNamespace(
+                    create=unittest.mock.Mock(side_effect=RuntimeError("classifier unavailable"))
+                )
+            )
+        )
+
+        classification = await self.router._classify_intent("An unmatched request")
+
+        self.assertEqual(classification["route"], "mini")
+        self.assertEqual(classification["intent"], "simple")
+
+
+class ExpandedRuleRoutingTests(unittest.TestCase):
+    def setUp(self):
+        self.router = ModelRouter.__new__(ModelRouter)
+
+    def assert_route(self, prompt, route, intent):
+        result = self.router._rule_based_route(prompt)
+        self.assertIsNotNone(result, prompt)
+        self.assertEqual(result["route"], route, prompt)
+        self.assertEqual(result["intent"], intent, prompt)
+
+    def test_common_mini_rules(self):
+        cases = (
+            ("Hello, how are you?", "conversation"),
+            ("Write an email asking for a project update.", "writing"),
+            ("Extract the action items from this text.", "extraction"),
+            ("Make this professional: send it today.", "transformation"),
+            ("Give me ideas for an Azure workshop.", "planning"),
+            ("How does Azure Functions work?", "simple"),
+        )
+
+        for prompt, intent in cases:
+            with self.subTest(prompt=prompt):
+                self.assert_route(prompt, "mini", intent)
+
+    def test_specialized_rules_keep_priority(self):
+        cases = (
+            ("Translate to Polish: Hello", "deepseek", "translation"),
+            ("Summarize this report in five bullets", "deepseek", "summary"),
+            ("What is the weather today?", "realtime", "realtime"),
+            ("Use GPT-5-Pro and deeply analyze this design", "reasoning", "reasoning"),
+        )
+
+        for prompt, route, intent in cases:
+            with self.subTest(prompt=prompt):
+                self.assert_route(prompt, route, intent)
+
+    def test_temporal_word_without_live_data_stays_on_mini(self):
+        self.assert_route(
+            "Make this professional: please send the report today.",
+            "mini",
+            "transformation",
+        )
+
+    def test_temporal_word_with_live_subject_uses_realtime(self):
+        self.assert_route(
+            "What Azure announcements happened today?",
+            "realtime",
+            "realtime",
+        )
+
+    def test_high_availability_architecture_is_not_live_data(self):
+        self.assert_route(
+            "Design a high availability architecture for this API.",
+            "mini",
+            "reasoning",
+        )
 
 
 if __name__ == "__main__":

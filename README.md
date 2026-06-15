@@ -4,7 +4,7 @@ Production-ready demo showcasing enterprise multi-model AI architecture with int
 
 ## 🎯 Features
 
-- **Hybrid Multi-Model Routing**: Deterministic special-case routes plus the managed Foundry model-router for general interactive prompts
+- **Hybrid Multi-Model Routing**: Broad deterministic rules plus GPT-5-mini classification for unmatched prompts
 - **Azure AI Translator**: Deterministic text translation with language detection and DeepSeek fallback
 - **Intent Classification**: GPT-5-mini classifier handles prompts that do not match deterministic routing rules
 - **React Frontend**: Modern chat UI with Microsoft Foundry conversation history
@@ -38,10 +38,9 @@ Production-ready demo showcasing enterprise multi-model AI architecture with int
 ├─────────────────────┤
 │ • Azure Translator  │ (translation)
 │ • DeepSeek-V4       │ (summary/translation fallback)
-│ • GPT-5-mini        │ (realtime/fallback)
+│ • GPT-5-mini        │ (general answers, classification, realtime)
 │ • Web IQ web_search │ (fresh public-web answers)
 │ • GPT-5-Pro         │ (explicit deep reasoning)
-│ • model-router      │ (general interactive prompts)
 │ • Conversations API │ (durable chat history)
 └─────────────────────┘
 ```
@@ -61,7 +60,6 @@ source files. Answers include links to the corresponding public GitHub files.
   - `DeepSeek-V4-Flash`
   - `gpt-5.4-mini`
   - `gpt-5-pro-reasoning`
-  - `model-router`
 - Azure OpenAI endpoint and either managed identity access or an API key for local development
 - GitHub account
 - Node.js 18+ and Python 3.12+
@@ -153,8 +151,8 @@ Request:
 
 Response:
 {
-  "modelUsed": "gpt-4o-mini-2024-07-18",
-  "reason": "Rule match: short/simple query → Foundry model-router | Foundry model-router selected gpt-4o-mini-2024-07-18",
+  "modelUsed": "gpt-5.4-mini",
+  "reason": "Rule match: general knowledge → GPT-5-mini",
   "answer": "Machine learning is..."
 }
 ```
@@ -169,11 +167,11 @@ a mode switch.
 |-----------|-------|--------|
 | Translation | DeepSeek-V4-Flash | Cost-optimized, fast |
 | Summaries | DeepSeek-V4-Flash | No deep reasoning needed |
-| Simple questions | Foundry model-router | Managed model selection |
+| Simple questions, writing, extraction, and conversation | GPT-5-mini | Fast general-purpose route |
 | Live data | GPT-5-mini + retrieved context | Freshness-aware response |
-| Planning, analysis, math, and code | GPT-5-mini | Pre-router reasoning detection |
+| Planning, analysis, math, and code | GPT-5-mini | Deterministic complexity rules |
 | Explicit deep/pro request | GPT-5-Pro | High-effort reasoning with longer latency |
-| Ambiguous or low-confidence classification | Foundry model-router | Managed model selection with GPT-5-mini fallback |
+| Ambiguous or low-confidence classification | GPT-5-mini | GPT-5-mini classifier and safe default |
 
 ## 🔐 Security
 
@@ -195,8 +193,6 @@ DEEPSEEK_MODEL=DeepSeek-V4-Flash
 ROUTER_MODEL=gpt-5.4-mini
 REASONING_MODEL=gpt-5-pro-reasoning
 REASONING_ENDPOINT=https://your-responses-capable-resource.cognitiveservices.azure.com/
-FOUNDRY_ROUTER_ENDPOINT=https://your-router-resource.cognitiveservices.azure.com/
-FOUNDRY_ROUTER_MODEL=model-router
 WEB_IQ_ENABLED=false
 WEB_IQ_ENDPOINT=https://your-responses-api-region.cognitiveservices.azure.com/
 WEB_IQ_MODEL=gpt-5.4-mini
@@ -220,6 +216,8 @@ TRANSLATOR_ENABLED=true
 TRANSLATOR_ENDPOINT=https://your-foundry-resource.cognitiveservices.azure.com/
 TRANSLATOR_REGION=westeurope
 TRANSLATOR_API_VERSION=3.0
+IMAGE_OPENAI_ENDPOINT=https://your-image-resource.cognitiveservices.azure.com/
+IMAGE_GENERATION_MODEL=gpt-image-1-mini
 FRONTEND_URL=https://orange-hill-0db554803.7.azurestaticapps.net
 ```
 

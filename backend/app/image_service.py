@@ -19,7 +19,6 @@ class ImageService:
     def __init__(self):
         self.generation_endpoint = (
             settings.IMAGE_OPENAI_ENDPOINT
-            or settings.FOUNDRY_ROUTER_ENDPOINT
             or settings.AZURE_OPENAI_ENDPOINT
         ).rstrip("/")
         self.understanding_endpoint = settings.AZURE_OPENAI_ENDPOINT.rstrip("/")

@@ -75,6 +75,7 @@ class WebIQRoutingTests(unittest.IsolatedAsyncioTestCase):
         )
 
         self.assertEqual(route["intent"], "realtime")
+        self.assertEqual(route["route"], "realtime")
         self.assertEqual(route["reason"], "Rule match: explicit website lookup → Web IQ")
 
     def test_full_url_routes_to_web_iq(self):
@@ -87,7 +88,7 @@ class WebIQRoutingTests(unittest.IsolatedAsyncioTestCase):
     async def test_fresh_prompt_uses_web_iq(self):
         router = ModelRouter.__new__(ModelRouter)
         router._rule_based_route = lambda prompt: {
-            "route": "router",
+            "route": "realtime",
             "reason": "fresh",
             "intent": "realtime",
         }
@@ -118,7 +119,7 @@ class WebIQRoutingTests(unittest.IsolatedAsyncioTestCase):
         router = ModelRouter.__new__(ModelRouter)
         router.router_model = "gpt-5.4-mini"
         router._rule_based_route = lambda prompt: {
-            "route": "router",
+            "route": "realtime",
             "reason": "fresh",
             "intent": "realtime",
         }

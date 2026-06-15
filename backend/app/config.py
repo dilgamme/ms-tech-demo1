@@ -12,8 +12,6 @@ class Settings(BaseSettings):
     ROUTER_MODEL: str = "gpt-5.4-mini"
     REASONING_MODEL: str = "gpt-5-pro-reasoning"
     REASONING_ENDPOINT: Optional[str] = None
-    FOUNDRY_ROUTER_ENDPOINT: Optional[str] = None
-    FOUNDRY_ROUTER_MODEL: str = "model-router"
 
     # Microsoft Foundry Web IQ / Azure OpenAI web search
     WEB_IQ_ENABLED: bool = False

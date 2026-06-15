@@ -38,12 +38,13 @@ class SelfKnowledgeRoutingTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_rag_failure_falls_back_to_normal_routing(self):
         router = ModelRouter.__new__(ModelRouter)
+        router.router_model = "gpt-5.4-mini"
         router._rule_based_route = lambda prompt: {
-            "route": "router",
+            "route": "mini",
             "reason": "test fallback",
             "intent": "simple",
         }
-        router._call_foundry_router_model = AsyncMock(return_value=("Fallback answer", "model-router"))
+        router._call_mini_answer_model = AsyncMock(return_value="Fallback answer")
 
         with (
             patch("app.router_logic.settings.SELF_KNOWLEDGE_RAG_ENABLED", True),
@@ -56,7 +57,7 @@ class SelfKnowledgeRoutingTests(unittest.IsolatedAsyncioTestCase):
             response = await router.route_prompt("Tell me about this app")
 
         self.assertEqual(response.answer, "Fallback answer")
-        self.assertEqual(response.modelUsed, "model-router")
+        self.assertEqual(response.modelUsed, "gpt-5.4-mini")
 
     def test_casual_greeting_is_not_self_knowledge(self):
         router = ModelRouter.__new__(ModelRouter)
