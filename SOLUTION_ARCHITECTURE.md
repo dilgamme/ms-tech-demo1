@@ -298,7 +298,7 @@ Routing summary:
 |-------------|-------|
 | Translation | `DeepSeek-V4-Flash` |
 | Summary | `DeepSeek-V4-Flash` |
-| Explicit deep reasoning request or exceptionally complex multi-step task | `gpt-5-pro-reasoning` |
+| Explicit deep reasoning or compound production architecture/migration request with multiple evaluation and delivery requirements | `gpt-5-pro-reasoning` |
 | Analysis, code, math, architecture, and planning | `gpt-5.4-mini` complexity route |
 | Realtime query | `gpt-5.4-mini` with fetched external context |
 | General interactive query | `gpt-5.4-mini` |

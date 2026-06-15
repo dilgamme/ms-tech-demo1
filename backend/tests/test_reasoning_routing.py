@@ -41,9 +41,30 @@ class ReasoningRoutingTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(route["route"], "reasoning")
         self.assertIn("high-complexity", route["reason"])
 
+    def test_compound_production_migration_prompt_routes_to_pro(self):
+        route = self.router._rule_based_route(
+            """
+            Design a production-ready migration plan for a high-traffic monolithic
+            application to microservices. Compare at least three architectures,
+            quantify trade-offs in cost, reliability, latency, and operational
+            complexity, identify failure modes and edge cases, then recommend a
+            phased implementation with rollback criteria.
+            """
+        )
+
+        self.assertEqual(route["route"], "reasoning")
+        self.assertIn("GPT-5-Pro", route["reason"])
+
     def test_typical_architecture_prompt_remains_on_mini(self):
         route = self.router._rule_based_route(
             "Design a high availability architecture for a customer API with failover."
+        )
+
+        self.assertEqual(route["route"], "mini")
+
+    def test_high_traffic_workload_is_not_mistaken_for_live_traffic(self):
+        route = self.router._rule_based_route(
+            "Design a scalable API for a high-traffic application."
         )
 
         self.assertEqual(route["route"], "mini")

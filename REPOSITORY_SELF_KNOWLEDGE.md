@@ -10,7 +10,8 @@ explicitly indexed.
 ## Runtime Flow
 
 1. The normal `/api/routePrompt` path checks for specific questions about the
-   application's architecture, models, Azure services, source code, or GitHub repo.
+   application's architecture, deployment, models, Azure services, source code,
+   GitHub repo, or README.
 2. Matching questions query the existing Azure AI Search RAG index.
 3. `gpt-5.4-mini` answers using only retrieved context.
 4. The response includes source titles, excerpts, and links to the public GitHub

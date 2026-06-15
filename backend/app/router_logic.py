@@ -212,6 +212,52 @@ REASONING_CONSTRAINT_PATTERNS = (
     "recommend an approach",
 )
 
+HIGH_EFFORT_REASONING_PATTERN_GROUPS = (
+    (
+        "production readiness",
+        (
+            "production-ready",
+            "production ready",
+            "enterprise-grade",
+            "enterprise grade",
+        ),
+    ),
+    (
+        "multi-option comparison",
+        (
+            "at least three",
+            "multiple architectures",
+            "multiple approaches",
+            "compare architectures",
+            "compare approaches",
+            "compare strategies",
+        ),
+    ),
+    (
+        "quantified evaluation",
+        (
+            "quantify",
+            "cost estimate",
+            "cost model",
+            "latency target",
+            "latency budget",
+            "slo",
+            "service level objective",
+        ),
+    ),
+    (
+        "delivery and rollback",
+        (
+            "phased implementation",
+            "phased migration",
+            "rollback criteria",
+            "rollback plan",
+            "exit criteria",
+            "go/no-go",
+        ),
+    ),
+)
+
 CODE_ARTIFACT_PATTERN = re.compile(
     r"```|(?<!\w)(?:traceback|stack trace|exception|compiler error|runtime error|"
     r"function|class|method|api|sql|regex|dockerfile|terraform|bicep|kubernetes|"
@@ -250,7 +296,6 @@ REALTIME_PATTERNS = (
     "standings",
     "schedule",
     "opening hours",
-    "traffic",
     "flight status",
     "election results",
     "who is the current",
@@ -322,8 +367,17 @@ SELF_KNOWLEDGE_PATTERNS = (
     "your tech stack",
     "your source code",
     "your github",
+    "my github",
+    "github readme",
+    "repository readme",
     "your repository",
     "your repo",
+    "your deployment",
+    "deployment workflow",
+    "deployment workflows",
+    "how are you deployed",
+    "how were you deployed",
+    "how do you deploy",
     "what models do you use",
     "which models do you use",
     "what azure services do you use",
@@ -331,6 +385,8 @@ SELF_KNOWLEDGE_PATTERNS = (
     "tell me about this app",
     "how is this app built",
     "how was this app built",
+    "how is this app deployed",
+    "how was this app deployed",
 )
 
 MAX_HISTORY_MESSAGES = 6
@@ -709,6 +765,9 @@ Rules:
 - Interactive analysis, architecture, planning, debugging, math/logic, code generation, code review, and optimization: mini
 - Use reasoning for exceptionally complex, multi-step tasks with several independent signals such as architecture,
   constraints/tradeoffs, technical artifacts, math/logic, many requirements, and substantial prompt length.
+- Treat production-ready architecture or migration requests as reasoning when they also require several of:
+  comparison of multiple options, quantified cost/reliability/latency tradeoffs, failure modes or edge cases,
+  a phased implementation, rollback criteria, or a justified recommendation.
 - Also use reasoning if the user explicitly asks for pro, deep reasoning, highest quality, or to take extra time.
 
 Return only valid JSON."""
@@ -1006,6 +1065,10 @@ Return only valid JSON."""
         if self._contains_any(text, REASONING_CONSTRAINT_PATTERNS):
             score += 1
             signals.append("constraints/tradeoffs")
+        for signal, patterns in HIGH_EFFORT_REASONING_PATTERN_GROUPS:
+            if self._contains_any(text, patterns):
+                score += 1
+                signals.append(signal)
         if CODE_ARTIFACT_PATTERN.search(text):
             score += 1
             signals.append("code/technical context")

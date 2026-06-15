@@ -36,6 +36,38 @@ class SelfKnowledgeRoutingTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(response.answer, rag_response.answer)
         self.assertEqual(response.sources, rag_response.sources)
 
+    async def test_github_readme_deployment_question_uses_grounded_rag(self):
+        router = ModelRouter.__new__(ModelRouter)
+        rag_service = SimpleNamespace(
+            answer=AsyncMock(
+                return_value=RagResponse(
+                    answer="GitHub Actions deploys the frontend and backend.",
+                    modelUsed="gpt-5.4-mini",
+                    indexUsed="test-index",
+                    sources=[
+                        RagSource(
+                            title="MS Tech Demo: README.md",
+                            chunk="Push to main deploys through GitHub Actions.",
+                            source="https://github.com/example/repo/blob/main/README.md",
+                        )
+                    ],
+                )
+            )
+        )
+
+        with (
+            patch("app.router_logic.settings.SELF_KNOWLEDGE_RAG_ENABLED", True),
+            patch("app.router_logic.settings.AZURE_SEARCH_ENDPOINT", "https://search.example"),
+            patch("app.router_logic.get_rag_service", return_value=rag_service),
+        ):
+            response = await router.route_prompt(
+                "Check my GitHub README and explain how this app is deployed."
+            )
+
+        rag_service.answer.assert_awaited_once()
+        self.assertEqual(response.reason, "Repository-grounded self knowledge")
+        self.assertEqual(response.sources[0].title, "MS Tech Demo: README.md")
+
     async def test_rag_failure_falls_back_to_normal_routing(self):
         router = ModelRouter.__new__(ModelRouter)
         router.router_model = "gpt-5.4-mini"
