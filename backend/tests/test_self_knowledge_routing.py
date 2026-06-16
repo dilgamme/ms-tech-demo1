@@ -65,6 +65,7 @@ class SelfKnowledgeRoutingTests(unittest.IsolatedAsyncioTestCase):
             )
 
         rag_service.answer.assert_awaited_once()
+        self.assertEqual(rag_service.answer.await_args.kwargs["namespace"], "repository")
         self.assertEqual(response.reason, "Repository-grounded self knowledge")
         self.assertEqual(response.sources[0].title, "MS Tech Demo: README.md")
 
@@ -97,6 +98,7 @@ class SelfKnowledgeRoutingTests(unittest.IsolatedAsyncioTestCase):
             )
 
         rag_service.answer.assert_awaited_once()
+        self.assertEqual(rag_service.answer.await_args.kwargs["namespace"], "repository")
         self.assertEqual(response.reason, "Repository-grounded self knowledge")
         self.assertEqual(response.sources[0].title, "MS Tech Demo: SOLUTION_ARCHITECTURE.md")
 

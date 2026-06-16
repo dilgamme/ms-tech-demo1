@@ -12,13 +12,16 @@ explicitly indexed.
 1. The normal `/api/routePrompt` path checks for specific questions about the
    application's architecture, deployment, models, Azure services, source code,
    GitHub repo, or README.
-2. Matching questions query the existing Azure AI Search RAG index.
+2. Matching questions query the `repository` namespace in the existing Azure AI
+   Search RAG index.
 3. `gpt-5.4-mini` answers using only retrieved context.
 4. The response includes source titles, excerpts, and links to the public GitHub
    files.
 5. Search failures or empty results fall back to the normal multi-model router.
 
-The manual RAG toggle remains available for arbitrary indexed-document questions.
+The manual RAG toggle remains available for storage-backed enterprise document
+questions. It filters the same Azure AI Search index to the `documents`
+namespace.
 
 ## Indexed Repository Content
 
@@ -51,6 +54,11 @@ updates matching chunks without duplicating them. Re-index after meaningful
 architecture, routing, infrastructure, or documentation changes. If a file is
 removed or becomes substantially shorter, recreate the index during a maintenance
 window to remove obsolete trailing chunks.
+
+When recreating the full index, include both the storage-extracted enterprise
+documents and the repository root. The index schema includes a filterable
+`namespace` field so `/api/rag` can search `documents` while self-knowledge
+routing searches `repository`.
 
 ## Security Notes
 

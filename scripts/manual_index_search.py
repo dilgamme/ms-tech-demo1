@@ -112,6 +112,7 @@ def create_index() -> None:
         "name": name,
         "fields": [
             {"name": "id", "type": "Edm.String", "key": True, "filterable": True},
+            {"name": "namespace", "type": "Edm.String", "filterable": True, "sortable": True},
             {"name": "title", "type": "Edm.String", "searchable": True, "filterable": True, "sortable": True},
             {"name": "chunk", "type": "Edm.String", "searchable": True},
             {"name": "source", "type": "Edm.String", "filterable": True, "sortable": True},
@@ -185,6 +186,7 @@ def build_document_chunks(
     namespace: str,
 ) -> list[dict]:
     text = path.read_text(encoding="utf-8")
+    label = "Repository file" if namespace == "repository" else "Enterprise document"
     documents = []
     for idx, chunk in enumerate(chunk_text(text), start=1):
         digest = hashlib.sha256(
@@ -194,8 +196,9 @@ def build_document_chunks(
             {
                 "@search.action": "mergeOrUpload",
                 "id": digest,
+                "namespace": namespace,
                 "title": title,
-                "chunk": f"Repository file: {relative_path.as_posix()}\n\n{chunk}",
+                "chunk": f"{label}: {relative_path.as_posix()}\n\n{chunk}",
                 "source": source,
             }
         )

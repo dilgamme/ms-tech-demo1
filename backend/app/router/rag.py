@@ -18,6 +18,7 @@ async def rag_answer(request: RagRequest) -> RagResponse:
             request.question,
             request.topK,
             fast_mode=request.fastMode,
+            namespace="documents",
         )
     except ValueError as exc:
         logger.error("RAG configuration/query error: %s", exc)

@@ -563,6 +563,7 @@ class ModelRouter:
                     rag_response = await get_rag_service().answer(
                         prompt,
                         fast_mode=fast_mode,
+                        namespace="repository",
                     )
                     if rag_response.sources:
                         return RoutingResponse(

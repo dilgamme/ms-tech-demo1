@@ -386,7 +386,7 @@ flowchart LR
     Explicit --> API
     API --> Search[Azure AI Search Free<br/>manual lexical index]
     Manual[Manual indexing script<br/>scripts/manual_index_search.py] --> Search
-    Docs[Selected .md/.txt files] --> Manual
+    Docs[Storage-backed enterprise documents] --> Manual
     Repo[Allowlisted repository docs and source] --> Manual
     Search --> API
     API --> Mini[gpt-5.4-mini]
@@ -399,6 +399,15 @@ The Azure AI Search index is:
 ```text
 rag-1779444354799
 ```
+
+The index contains two filtered namespaces:
+
+- `documents`: storage-backed enterprise knowledge from `mstechdemoragstorage/rag-documents`
+- `repository`: allowlisted repository documentation and source files for self-knowledge
+
+Explicit `/api/rag` requests filter to `documents`. Automatic self-knowledge
+requests filter to `repository`, so enterprise questions do not retrieve source
+code and architecture questions do not retrieve travel policy documents.
 
 The native Search indexer schedule was removed. Indexing runs on demand to reduce
 cost. Free-tier Azure AI Search does not support the previous private endpoint and

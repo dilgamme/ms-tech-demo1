@@ -37,12 +37,14 @@ class RagService:
         question: str,
         top_k: int | None = None,
         fast_mode: bool = False,
+        namespace: str | None = None,
     ) -> RagResponse:
         k = top_k or settings.RAG_TOP_K
-        sources = await self._search(question, k)
+        sources = await self._search(question, k, namespace=namespace)
         if not sources:
+            scope = f" in the {namespace} knowledge base" if namespace else ""
             return RagResponse(
-                answer="I could not find relevant information in the indexed documents.",
+                answer=f"I could not find relevant information{scope}.",
                 modelUsed=self.answer_model,
                 indexUsed=self.index_name,
                 sources=[]
@@ -56,12 +58,19 @@ class RagService:
             sources=sources
         )
 
-    async def _search(self, question: str, top_k: int) -> list[RagSource]:
+    async def _search(
+        self,
+        question: str,
+        top_k: int,
+        namespace: str | None = None,
+    ) -> list[RagSource]:
         payload = {
             "search": question,
             "top": top_k,
             "select": "title,chunk,source"
         }
+        if namespace:
+            payload["filter"] = f"namespace eq '{namespace}'"
         if settings.AZURE_SEARCH_VECTOR_ENABLED:
             payload["vectorQueries"] = [
                 {
