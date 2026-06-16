@@ -8,6 +8,7 @@ os.environ.setdefault("AZURE_OPENAI_ENDPOINT", "https://example.cognitiveservice
 os.environ.setdefault("AZURE_OPENAI_KEY", "test-key")
 os.environ.setdefault("TRANSLATOR_ENABLED", "true")
 os.environ.setdefault("TRANSLATOR_ENDPOINT", "https://example.cognitiveservices.azure.com/")
+os.environ["TRANSLATOR_KEY"] = "test-key"
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
@@ -17,6 +18,7 @@ from app.translation_service import (  # noqa: E402
     parse_translation_request,
     resolve_translation_request,
 )
+from app.config import settings  # noqa: E402
 
 
 class TranslationRequestParsingTests(unittest.TestCase):
@@ -58,6 +60,8 @@ class TranslationRequestParsingTests(unittest.TestCase):
 
 class TranslationServiceTests(unittest.IsolatedAsyncioTestCase):
     async def test_calls_translator_and_returns_detected_language(self):
+        settings.TRANSLATOR_KEY = "test-key"
+
         def handler(request: httpx.Request) -> httpx.Response:
             self.assertEqual(request.url.path, "/translator/text/v3.0/translate")
             self.assertEqual(request.url.params["to"], "pl")

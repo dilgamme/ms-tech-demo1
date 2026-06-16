@@ -16,6 +16,7 @@ class Settings(BaseSettings):
     # Microsoft Foundry Web IQ / Azure OpenAI web search
     WEB_IQ_ENABLED: bool = False
     WEB_IQ_ENDPOINT: Optional[str] = None
+    WEB_IQ_KEY: Optional[str] = None
     WEB_IQ_MODEL: Optional[str] = None
     WEB_IQ_SEARCH_CONTEXT_SIZE: str = "medium"
     WEB_IQ_COUNTRY: Optional[str] = None

@@ -24,7 +24,7 @@ class WebIQService:
 
         self.model = settings.WEB_IQ_MODEL or settings.ROUTER_MODEL
         self.client = OpenAI(
-            api_key=get_openai_api_key(),
+            api_key=settings.WEB_IQ_KEY or get_openai_api_key(),
             base_url=f"{endpoint}/openai/v1/",
             max_retries=0,
         )
