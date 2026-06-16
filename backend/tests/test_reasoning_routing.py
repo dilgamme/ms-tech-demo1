@@ -9,20 +9,20 @@ class ReasoningRoutingTests(unittest.IsolatedAsyncioTestCase):
     def setUp(self):
         self.router = ModelRouter.__new__(ModelRouter)
 
-    def test_code_debugging_routes_to_mini(self):
+    def test_code_debugging_routes_to_middle(self):
         route = self.router._rule_based_route(
             "Debug this Python exception and identify the root cause."
         )
 
-        self.assertEqual(route["route"], "mini")
-        self.assertIn("complex reasoning", route["reason"])
+        self.assertEqual(route["route"], "middle")
+        self.assertIn("moderate reasoning", route["reason"])
 
-    def test_architecture_planning_routes_to_mini(self):
+    def test_architecture_planning_routes_to_middle(self):
         route = self.router._rule_based_route(
             "Design an architecture for a resilient API with these constraints."
         )
 
-        self.assertEqual(route["route"], "mini")
+        self.assertEqual(route["route"], "middle")
 
     def test_high_complexity_prompt_automatically_routes_to_pro(self):
         route = self.router._rule_based_route(
@@ -75,26 +75,26 @@ class ReasoningRoutingTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(route["route"], "reasoning")
         self.assertIn("architecture decision", route["reason"])
 
-    def test_typical_architecture_prompt_remains_on_mini(self):
+    def test_typical_architecture_prompt_uses_middle(self):
         route = self.router._rule_based_route(
             "Design a high availability architecture for a customer API with failover."
         )
 
-        self.assertEqual(route["route"], "mini")
+        self.assertEqual(route["route"], "middle")
 
     def test_high_traffic_workload_is_not_mistaken_for_live_traffic(self):
         route = self.router._rule_based_route(
             "Design a scalable API for a high-traffic application."
         )
 
-        self.assertEqual(route["route"], "mini")
+        self.assertEqual(route["route"], "middle")
 
-    def test_math_and_logic_routes_to_mini(self):
+    def test_math_and_logic_routes_to_middle(self):
         route = self.router._rule_based_route(
             "Solve 24 / 6 + 7 and explain the reasoning."
         )
 
-        self.assertEqual(route["route"], "mini")
+        self.assertEqual(route["route"], "middle")
 
     def test_simple_question_uses_mini(self):
         route = self.router._rule_based_route("What is Azure?")
@@ -117,18 +117,19 @@ class ReasoningRoutingTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(route["route"], "realtime")
         self.assertEqual(route["intent"], "realtime")
 
-    async def test_mini_route_calls_mini_answer_model(self):
+    async def test_middle_route_calls_middle_answer_model(self):
         self.router.router_model = "gpt-5.4-mini"
-        self.router._call_mini_answer_model = AsyncMock(return_value="Reasoned answer")
+        self.router.middle_model = "gpt-5.4"
+        self.router._call_middle_answer_model = AsyncMock(return_value="Reasoned answer")
 
         response = await self.router.route_prompt(
             "Compare options and recommend the best approach."
         )
 
-        self.router._call_mini_answer_model.assert_awaited_once()
-        self.assertEqual(response.modelUsed, "gpt-5.4-mini")
+        self.router._call_middle_answer_model.assert_awaited_once()
+        self.assertEqual(response.modelUsed, "gpt-5.4")
 
-    async def test_classifier_reasoning_intent_maps_to_mini(self):
+    async def test_classifier_reasoning_intent_maps_to_middle(self):
         completion = SimpleNamespace(
             choices=[
                 SimpleNamespace(
@@ -152,8 +153,8 @@ class ReasoningRoutingTests(unittest.IsolatedAsyncioTestCase):
             "Create a phased migration strategy for this workload."
         )
 
-        self.assertEqual(classification["route"], "mini")
-        self.assertIn("GPT-5-mini", classification["reason"])
+        self.assertEqual(classification["route"], "middle")
+        self.assertIn("GPT-5.4", classification["reason"])
 
     async def test_low_confidence_classifier_defaults_to_mini(self):
         completion = SimpleNamespace(
@@ -283,7 +284,7 @@ class ExpandedRuleRoutingTests(unittest.TestCase):
     def test_high_availability_architecture_is_not_live_data(self):
         self.assert_route(
             "Design a high availability architecture for this API.",
-            "mini",
+            "middle",
             "reasoning",
         )
 

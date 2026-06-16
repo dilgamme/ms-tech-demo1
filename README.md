@@ -195,6 +195,7 @@ AZURE_OPENAI_KEY=your-api-key
 USE_MANAGED_IDENTITY=false
 DEEPSEEK_MODEL=DeepSeek-V4-Flash
 ROUTER_MODEL=gpt-5.4-mini
+MIDDLE_MODEL=gpt-5.4
 REASONING_MODEL=gpt-5-pro-reasoning
 REASONING_ENDPOINT=https://your-responses-capable-resource.cognitiveservices.azure.com/
 WEB_IQ_ENABLED=false

@@ -10,6 +10,7 @@ class Settings(BaseSettings):
     # Model names (deployment names in Azure)
     DEEPSEEK_MODEL: str = "DeepSeek-V4-Flash"
     ROUTER_MODEL: str = "gpt-5.4-mini"
+    MIDDLE_MODEL: str = "gpt-5.4"
     REASONING_MODEL: str = "gpt-5-pro-reasoning"
     REASONING_ENDPOINT: Optional[str] = None
 

@@ -443,6 +443,7 @@ class ModelRouter:
         )
         self.deepseek_model = settings.DEEPSEEK_MODEL
         self.router_model = settings.ROUTER_MODEL
+        self.middle_model = settings.MIDDLE_MODEL
         self.reasoning_model = settings.REASONING_MODEL
         reasoning_endpoint = (settings.REASONING_ENDPOINT or settings.AZURE_OPENAI_ENDPOINT).rstrip("/")
         reasoning_api_key = (
@@ -615,6 +616,41 @@ class ModelRouter:
                     answer=self._result_answer(response),
                     metrics=self._result_metrics(response),
                 )
+            if route == "middle":
+                try:
+                    response = await self._call_middle_answer_model(
+                        prompt,
+                        messages,
+                        fast_mode=fast_mode,
+                    )
+                    return RoutingResponse(
+                        modelUsed=self.middle_model,
+                        reason=self._mode_reason(intent_classification["reason"], fast_mode),
+                        answer=self._result_answer(response),
+                        metrics=self._result_metrics(response),
+                    )
+                except Exception as middle_error:
+                    logger.warning(
+                        "Middle route fallback to mini after %s: %s",
+                        type(middle_error).__name__,
+                        middle_error,
+                    )
+                    response = await self._call_mini_answer_model(
+                        prompt,
+                        messages,
+                        compact=True,
+                        fast_mode=fast_mode,
+                    )
+                    return RoutingResponse(
+                        modelUsed=self.router_model,
+                        reason=self._mode_reason(
+                            f"{intent_classification['reason']} | "
+                            "GPT-5.4 unavailable/slow, fallback → GPT-5-mini",
+                            fast_mode,
+                        ),
+                        answer=self._result_answer(response),
+                        metrics=self._result_metrics(response),
+                    )
 
             if route == "realtime":
                 if settings.WEB_IQ_ENABLED:
@@ -780,9 +816,9 @@ class ModelRouter:
 
         if reasoning_score >= 2:
             return {
-                "route": "mini",
+                "route": "middle",
                 "reason": (
-                    "Rule match: complex reasoning → GPT-5-mini "
+                    "Rule match: moderate reasoning → GPT-5.4 "
                     f"({', '.join(reasoning_signals[:3])})"
                 ),
                 "intent": "reasoning",
@@ -820,7 +856,7 @@ class ModelRouter:
         """
         Classify prompt intent:
         - Translation → Azure AI Translator, with DeepSeek fallback
-        - Interactive analysis/reasoning → GPT-5-mini
+        - Interactive analysis/reasoning → GPT-5.4
         - Simple and general prompts → GPT-5-mini
         - Real-time prompts → GPT-5-mini with retrieved context
         - Explicit deep/pro requests → GPT-5-Pro
@@ -833,7 +869,7 @@ Return one JSON object:
 {
   "intent": "translation|summary|simple|realtime|analysis|code|math|planning|reasoning|writing|extraction|transformation|conversation|factual",
   "confidence": 0.0-1.0,
-  "route": "deepseek|mini|realtime|reasoning",
+  "route": "deepseek|mini|middle|realtime|reasoning",
   "reason": "short explanation"
 }
 
@@ -842,7 +878,7 @@ Rules:
 - Short summaries: deepseek
 - Simple factual questions, definitions, explanations, writing, extraction, transformation, and conversation: mini
 - Current/latest/real-time/live-data questions, including news, prices, weather, sports scores, recent events, or anything where freshness matters: realtime
-- Interactive analysis, architecture, planning, debugging, math/logic, code generation, code review, and optimization: mini
+- Moderate analysis, architecture, planning, debugging, math/logic, code generation, code review, and optimization: middle
 - Use reasoning for exceptionally complex, multi-step tasks with several independent signals such as architecture,
   constraints/tradeoffs, technical artifacts, math/logic, many requirements, and substantial prompt length.
 - Treat production-ready architecture or migration requests as reasoning when they also require several of:
@@ -881,6 +917,8 @@ Return only valid JSON."""
             selected_route = route
             if intent in MINI_INTENTS:
                 selected_route = "mini"
+            if intent in {"analysis", "code", "math", "planning", "reasoning"}:
+                selected_route = "middle"
             if intent in REALTIME_INTENTS:
                 selected_route = "realtime"
             if intent in DEEPSEEK_INTENTS:
@@ -889,7 +927,7 @@ Return only valid JSON."""
                 selected_route = "reasoning"
             elif selected_route == "reasoning" or confidence < 0.65:
                 selected_route = "mini"
-            if selected_route not in {"deepseek", "mini", "realtime", "reasoning"}:
+            if selected_route not in {"deepseek", "mini", "middle", "realtime", "reasoning"}:
                 selected_route = "mini"
             
             reason_map = {
@@ -897,11 +935,11 @@ Return only valid JSON."""
                 "summary": "Classifier: summary → DeepSeek",
                 "simple": "Classifier: simple query → GPT-5-mini",
                 "realtime": "Classifier: real-time/current data → GPT-5-mini",
-                "analysis": "Classifier: interactive analysis → GPT-5-mini",
-                "code": "Classifier: interactive code task → GPT-5-mini",
-                "math": "Classifier: interactive math/logic → GPT-5-mini",
-                "planning": "Classifier: interactive planning → GPT-5-mini",
-                "reasoning": "Classifier: interactive reasoning → GPT-5-mini",
+                "analysis": "Classifier: interactive analysis → GPT-5.4",
+                "code": "Classifier: interactive code task → GPT-5.4",
+                "math": "Classifier: interactive math/logic → GPT-5.4",
+                "planning": "Classifier: interactive planning → GPT-5.4",
+                "reasoning": "Classifier: interactive reasoning → GPT-5.4",
                 "writing": "Classifier: writing/editing → GPT-5-mini",
                 "extraction": "Classifier: extraction/formatting → GPT-5-mini",
                 "transformation": "Classifier: transformation → GPT-5-mini",
@@ -918,6 +956,7 @@ Return only valid JSON."""
                 route_labels = {
                     "deepseek": "cost-optimized route → DeepSeek",
                     "mini": "reasoning-capable route → GPT-5-mini",
+                    "middle": "balanced quality route → GPT-5.4",
                     "realtime": "freshness-aware route → GPT-5-mini",
                     "reasoning": "explicit deep reasoning → GPT-5-Pro"
                 }
@@ -1004,6 +1043,47 @@ Return only valid JSON."""
             messages=message_list,
             max_completion_tokens=max_tokens,
             timeout=timeout_seconds
+        )
+        return ModelCallResult(
+            answer=response.choices[0].message.content,
+            metrics=self._usage_metrics(response),
+        )
+
+    async def _call_middle_answer_model(
+        self,
+        prompt: str,
+        messages: list = None,
+        fast_mode: bool = False,
+    ) -> ModelCallResult:
+        """Call GPT-5.4 for medium-complexity work that does not need Pro."""
+
+        max_tokens = 650 if fast_mode else 1200
+        system_message = {
+            "role": "system",
+            "content": (
+                "Answer as the balanced middle-tier model in an Azure multi-model demo. "
+                "Use more depth than the mini model, but avoid Pro-style exhaustive reasoning. "
+                "For architecture, debugging, planning, code review, or tradeoff questions, provide a structured, "
+                "practical answer with clear assumptions, recommendation, risks, and next steps. "
+                "Keep the result concise enough for an interactive demo."
+                + (
+                    " Fast mode is enabled: be direct, include only the strongest reasoning, and target "
+                    "a concise answer."
+                    if fast_mode
+                    else ""
+                )
+            )
+        }
+        message_list = [system_message, *self._prepare_messages(messages)]
+        message_list.append({"role": "user", "content": prompt})
+
+        response = await self._run_blocking(
+            MINI_ANSWER_TIMEOUT_SECONDS,
+            self.client.chat.completions.create,
+            model=self.middle_model,
+            messages=message_list,
+            max_completion_tokens=max_tokens,
+            timeout=MINI_ANSWER_TIMEOUT_SECONDS,
         )
         return ModelCallResult(
             answer=response.choices[0].message.content,
