@@ -9,6 +9,7 @@ export const ModelIndicator = ({ modelUsed, reason, metrics }) => {
     ? `in ${metrics.inputTokens ?? '?'} / out ${metrics.outputTokens ?? '?'}`
     : null
   const latencyText = metrics?.latencyMs ? `${(metrics.latencyMs / 1000).toFixed(1)}s` : null
+  const metricsLabel = tokenText ? 'Metrics' : 'Elapsed'
 
   const getModelStyle = (model) => {
     const normalized = model.toLowerCase()
@@ -31,7 +32,7 @@ export const ModelIndicator = ({ modelUsed, reason, metrics }) => {
       )}
       {(tokenText || latencyText) && (
         <span className="rounded-full border border-slate-700 bg-slate-900 px-2.5 py-1 text-slate-400">
-          Metrics: {[latencyText, tokenText, tokenBreakdown].filter(Boolean).join(' · ')}
+          {metricsLabel}: {[latencyText, tokenText, tokenBreakdown].filter(Boolean).join(' · ')}
         </span>
       )}
     </div>

@@ -128,6 +128,7 @@ function App() {
         reason: response.reason || (isRagMode ? `RAG: Azure AI Search index ${response.indexUsed}` : undefined),
         metrics: response.metrics,
         sources: response.sources,
+        pendingStartedAt: response.pendingResponseId ? Date.now() : undefined,
       }
       setMessages(prev => [...prev, assistantMessage])
       if (response.pendingResponseId) {
@@ -152,6 +153,7 @@ function App() {
 
   const pollPendingReasoning = async (messageId, responseId) => {
     let currentResponseId = responseId
+    const startedAt = Date.now()
     for (let attempt = 0; attempt < 72; attempt += 1) {
       await new Promise(resolve => setTimeout(resolve, 5000))
       const result = await getReasoningResponse(currentResponseId)
@@ -166,7 +168,13 @@ function App() {
               modelUsed: result.modelUsed,
               reason: result.reason,
               sources: result.sources,
-              metrics: result.metrics,
+              metrics: result.pending
+                ? { latencyMs: Date.now() - (msg.pendingStartedAt || startedAt) }
+                : {
+                    ...(result.metrics || {}),
+                    latencyMs: Date.now() - (msg.pendingStartedAt || startedAt),
+                  },
+              pendingStartedAt: result.pending ? (msg.pendingStartedAt || startedAt) : undefined,
             }
           : msg
       )))
