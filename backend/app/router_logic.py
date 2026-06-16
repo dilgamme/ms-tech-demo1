@@ -210,6 +210,18 @@ ARCHITECTURE_PLANNING_PATTERNS = (
     "roadmap",
 )
 
+ARCHITECTURE_DECISION_PATTERNS = (
+    "architecture decision",
+    "migration strategy",
+    "migration strategies",
+    "compare three",
+    "evaluate them across",
+    "choose the best",
+    "failure modes",
+    "90-day execution plan",
+    "rollback safety",
+)
+
 REASONING_CONSTRAINT_PATTERNS = (
     "constraint",
     "requirement",
@@ -722,6 +734,22 @@ class ModelRouter:
                 "confidence": 0.98
             }
 
+        if self._contains_any(text, EXPLICIT_PRO_PATTERNS):
+            return {
+                "route": "reasoning",
+                "reason": "Rule match: explicit deep reasoning request → GPT-5-Pro",
+                "intent": "reasoning",
+                "confidence": 0.95
+            }
+
+        if self._is_architecture_decision_prompt(text):
+            return {
+                "route": "reasoning",
+                "reason": "Rule match: architecture decision analysis → GPT-5-Pro",
+                "intent": "reasoning",
+                "confidence": 0.96,
+            }
+
         if self._contains_any(text, SUMMARY_PATTERNS) and word_count < 900:
             return {
                 "route": "deepseek",
@@ -736,14 +764,6 @@ class ModelRouter:
                 "reason": "Rule match: fresh web/current data → Web IQ",
                 "intent": "realtime",
                 "confidence": 0.9
-            }
-
-        if self._contains_any(text, EXPLICIT_PRO_PATTERNS):
-            return {
-                "route": "reasoning",
-                "reason": "Rule match: explicit deep reasoning request → GPT-5-Pro",
-                "intent": "reasoning",
-                "confidence": 0.95
             }
 
         reasoning_score, reasoning_signals = self._reasoning_score(text)
@@ -1268,6 +1288,24 @@ Return only valid JSON."""
             signals.append("high prompt complexity")
 
         return score, signals
+
+    def _is_architecture_decision_prompt(self, text: str) -> bool:
+        decision_hits = sum(
+            1 for pattern in ARCHITECTURE_DECISION_PATTERNS
+            if re.search(rf"(?<!\w){re.escape(pattern)}(?!\w)", text)
+        )
+        architecture_context = self._contains_any(
+            text,
+            (
+                "architecture",
+                "cloud-native",
+                "microservices",
+                "monolith",
+                "migration",
+                "devops maturity",
+            ),
+        )
+        return architecture_context and decision_hits >= 2
 
     @staticmethod
     def _should_auto_route_to_pro(score: int, signals: list[str]) -> bool:

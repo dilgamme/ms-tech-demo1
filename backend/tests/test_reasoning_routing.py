@@ -55,6 +55,26 @@ class ReasoningRoutingTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(route["route"], "reasoning")
         self.assertIn("GPT-5-Pro", route["reason"])
 
+    def test_architecture_decision_prompt_routes_to_pro(self):
+        route = self.router._rule_based_route(
+            """
+            I need a rigorous architecture decision, not a quick summary.
+
+            Compare three migration strategies for moving a large legacy monolith
+            to cloud-native microservices: big-bang rewrite, strangler-fig
+            migration, and modular monolith first.
+
+            Evaluate them across risk, delivery speed, team maturity, rollback
+            safety, observability, data consistency, and long-term maintainability.
+            Then choose the best option for a mid-sized engineering team with
+            limited DevOps maturity, list the biggest failure modes, and give a
+            phased 90-day execution plan with concrete milestones.
+            """
+        )
+
+        self.assertEqual(route["route"], "reasoning")
+        self.assertIn("architecture decision", route["reason"])
+
     def test_typical_architecture_prompt_remains_on_mini(self):
         route = self.router._rule_based_route(
             "Design a high availability architecture for a customer API with failover."
