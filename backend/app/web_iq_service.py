@@ -1,5 +1,6 @@
 import asyncio
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from urllib.parse import urlparse
 
 from openai import OpenAI
@@ -51,8 +52,13 @@ class WebIQService:
                 model=self.model,
                 input=self._prepare_input(prompt, messages),
                 instructions=(
-                    "Use web search for fresh, real-world information. Answer clearly and concisely. "
+                    f"Current date: {datetime.now(timezone.utc).date().isoformat()}. "
+                    "Use web search for fresh, real-world information. Search the public web yourself; "
+                    "do not ask the user to provide a source unless the requested information is private, "
+                    "ambiguous, or unavailable in the search results. Answer clearly and concisely. "
                     "Base time-sensitive claims on the search results, preserve uncertainty, and cite sources. "
+                    "For sports, elections, prices, releases, schedules, and live/current events, verify the "
+                    "latest available result or fixture before answering. "
                     "For image or video requests, return useful public pages or media URLs; do not claim that "
                     "you directly inspected media unless the search result provides that information."
                     + (

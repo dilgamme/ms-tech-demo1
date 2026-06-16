@@ -363,6 +363,53 @@ TEMPORAL_REALTIME_SUBJECTS = (
     "opening hours",
 )
 
+SPORTS_EVENT_PATTERNS = (
+    "world cup",
+    "fifa",
+    "uefa",
+    "euro ",
+    "champions league",
+    "europa league",
+    "premier league",
+    "la liga",
+    "serie a",
+    "bundesliga",
+    "nba",
+    "nfl",
+    "mlb",
+    "nhl",
+    "olympics",
+    "tournament",
+    "qualifier",
+    "qualification",
+)
+
+SPORTS_LOOKUP_PATTERNS = (
+    "score",
+    "result",
+    "results",
+    "fixture",
+    "fixtures",
+    "schedule",
+    "standings",
+    "table",
+    "group",
+    "draw",
+    "opponent",
+    "match",
+    "game",
+    "first match",
+    "first game",
+    "next match",
+    "next game",
+    "last match",
+    "kickoff",
+    "kick-off",
+    "lineup",
+    "line-up",
+    "qualified",
+)
+
 WEB_LOOKUP_PATTERNS = (
     "check this website",
     "check this site",
@@ -1415,6 +1462,11 @@ Return only valid JSON."""
 
     def _is_realtime_request(self, text: str) -> bool:
         if self._contains_any(text, REALTIME_PATTERNS):
+            return True
+        if (
+            self._contains_any(text, SPORTS_EVENT_PATTERNS)
+            and self._contains_any(text, SPORTS_LOOKUP_PATTERNS)
+        ):
             return True
         return (
             self._contains_any(text, TEMPORAL_PATTERNS)

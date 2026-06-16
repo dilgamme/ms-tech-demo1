@@ -85,6 +85,24 @@ class WebIQRoutingTests(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual(route["intent"], "realtime")
 
+    def test_sports_fixture_lookup_routes_to_web_iq(self):
+        router = ModelRouter.__new__(ModelRouter)
+
+        route = router._rule_based_route(
+            "What was Turkey's first 2026 World Cup game result?"
+        )
+
+        self.assertEqual(route["intent"], "realtime")
+        self.assertEqual(route["route"], "realtime")
+
+    def test_sports_opponent_lookup_routes_to_web_iq(self):
+        router = ModelRouter.__new__(ModelRouter)
+
+        route = router._rule_based_route("Who is Turkey's next World Cup qualifier opponent?")
+
+        self.assertEqual(route["intent"], "realtime")
+        self.assertEqual(route["route"], "realtime")
+
     async def test_fresh_prompt_uses_web_iq(self):
         router = ModelRouter.__new__(ModelRouter)
         router._rule_based_route = lambda prompt: {
