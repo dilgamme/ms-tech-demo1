@@ -433,8 +433,11 @@ WEB_DOMAIN_PATTERN = re.compile(
 SELF_KNOWLEDGE_PATTERNS = (
     "how are you built",
     "how were you built",
+    "how have you built",
+    "how did you build",
     "how do you work",
     "your architecture",
+    "your design architecture",
     "your tech stack",
     "your source code",
     "your github",
@@ -458,6 +461,33 @@ SELF_KNOWLEDGE_PATTERNS = (
     "how was this app built",
     "how is this app deployed",
     "how was this app deployed",
+)
+
+SELF_KNOWLEDGE_SUBJECT_PATTERNS = (
+    "you",
+    "your",
+    "this app",
+    "this application",
+    "the app",
+    "the application",
+    "ms tech demo",
+)
+
+SELF_KNOWLEDGE_TOPIC_PATTERNS = (
+    "architecture",
+    "design",
+    "built",
+    "build",
+    "deployed",
+    "deploy",
+    "implementation",
+    "source code",
+    "repo",
+    "repository",
+    "github",
+    "tech stack",
+    "models",
+    "azure services",
 )
 
 MAX_HISTORY_MESSAGES = 6
@@ -527,7 +557,7 @@ class ModelRouter:
                 and
                 settings.SELF_KNOWLEDGE_RAG_ENABLED
                 and settings.AZURE_SEARCH_ENDPOINT
-                and self._contains_any(prompt.strip().lower(), SELF_KNOWLEDGE_PATTERNS)
+                and self._is_self_knowledge_request(prompt.strip().lower())
             ):
                 try:
                     rag_response = await get_rag_service().answer(
@@ -1459,6 +1489,14 @@ Return only valid JSON."""
         has_lookup_language = self._contains_any(text, WEB_LOOKUP_PATTERNS)
         mentions_web_target = "website" in text or " web page" in text or " site" in text
         return has_domain or (has_lookup_language and mentions_web_target)
+
+    def _is_self_knowledge_request(self, text: str) -> bool:
+        if self._contains_any(text, SELF_KNOWLEDGE_PATTERNS):
+            return True
+        return (
+            self._contains_any(text, SELF_KNOWLEDGE_SUBJECT_PATTERNS)
+            and self._contains_any(text, SELF_KNOWLEDGE_TOPIC_PATTERNS)
+        )
 
     def _is_realtime_request(self, text: str) -> bool:
         if self._contains_any(text, REALTIME_PATTERNS):

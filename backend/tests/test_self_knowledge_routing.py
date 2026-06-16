@@ -68,6 +68,38 @@ class SelfKnowledgeRoutingTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(response.reason, "Repository-grounded self knowledge")
         self.assertEqual(response.sources[0].title, "MS Tech Demo: README.md")
 
+    async def test_design_architecture_question_uses_grounded_rag(self):
+        router = ModelRouter.__new__(ModelRouter)
+        rag_service = SimpleNamespace(
+            answer=AsyncMock(
+                return_value=RagResponse(
+                    answer="This app is a React frontend with a FastAPI router backend.",
+                    modelUsed="gpt-5.4-mini",
+                    indexUsed="test-index",
+                    sources=[
+                        RagSource(
+                            title="MS Tech Demo: SOLUTION_ARCHITECTURE.md",
+                            chunk="React frontend, FastAPI backend, Azure AI Foundry.",
+                            source="https://github.com/example/repo/blob/main/SOLUTION_ARCHITECTURE.md",
+                        )
+                    ],
+                )
+            )
+        )
+
+        with (
+            patch("app.router_logic.settings.SELF_KNOWLEDGE_RAG_ENABLED", True),
+            patch("app.router_logic.settings.AZURE_SEARCH_ENDPOINT", "https://search.example"),
+            patch("app.router_logic.get_rag_service", return_value=rag_service),
+        ):
+            response = await router.route_prompt(
+                "show me your design architecture how have you built?"
+            )
+
+        rag_service.answer.assert_awaited_once()
+        self.assertEqual(response.reason, "Repository-grounded self knowledge")
+        self.assertEqual(response.sources[0].title, "MS Tech Demo: SOLUTION_ARCHITECTURE.md")
+
     async def test_rag_failure_falls_back_to_normal_routing(self):
         router = ModelRouter.__new__(ModelRouter)
         router.router_model = "gpt-5.4-mini"
@@ -94,10 +126,16 @@ class SelfKnowledgeRoutingTests(unittest.IsolatedAsyncioTestCase):
     def test_casual_greeting_is_not_self_knowledge(self):
         router = ModelRouter.__new__(ModelRouter)
 
-        self.assertFalse(router._contains_any("how are you?", (
-            "how are you built",
-            "how were you built",
-        )))
+        self.assertFalse(router._is_self_knowledge_request("how are you?"))
+
+    def test_self_knowledge_detector_matches_architecture_phrasing(self):
+        router = ModelRouter.__new__(ModelRouter)
+
+        self.assertTrue(
+            router._is_self_knowledge_request(
+                "show me your design architecture how have you built?"
+            )
+        )
 
 
 if __name__ == "__main__":
