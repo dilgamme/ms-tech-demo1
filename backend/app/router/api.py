@@ -26,7 +26,7 @@ def _with_latency(result: RoutingResponse, started_at: float) -> RoutingResponse
     result.metrics = ResponseMetrics(**metrics)
     return result
 
-@router.post("/routePrompt", response_model=RoutingResponse)
+@router.post("/routePrompt", response_model=RoutingResponse, response_model_exclude_none=True)
 async def route_prompt(
     request: RoutingRequest,
     background_tasks: BackgroundTasks,
@@ -94,7 +94,7 @@ async def route_prompt(
         )
 
 
-@router.get("/reasoning/{response_id}", response_model=RoutingResponse)
+@router.get("/reasoning/{response_id}", response_model=RoutingResponse, response_model_exclude_none=True)
 async def reasoning_response(response_id: str) -> RoutingResponse:
     try:
         started_at = time.monotonic()
