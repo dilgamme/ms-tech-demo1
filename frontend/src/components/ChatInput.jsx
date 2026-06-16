@@ -8,8 +8,6 @@ export const ChatInput = ({
   onToggleVoice,
   isRagMode,
   onToggleRag,
-  modelMode,
-  onModelModeChange,
   onImageSend,
 }) => {
   const [input, setInput] = useState('')
@@ -70,12 +68,6 @@ export const ChatInput = ({
     }
   }
 
-  const modelModes = [
-    { value: 'auto', label: 'Auto', title: 'Let the router choose the best model' },
-    { value: 'reasoning', label: 'Reasoning', title: 'Force GPT-5-Pro reasoning' },
-    { value: 'general', label: 'General', title: 'Force the general GPT-5-mini answer model' },
-  ]
-
   return (
     <div className="border-t border-slate-800 bg-slate-950 px-4 py-4 sm:px-6">
       <div className="mx-auto w-full max-w-4xl">
@@ -118,25 +110,6 @@ export const ChatInput = ({
 
           <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-800 pt-2">
             <div className="flex flex-wrap items-center gap-2">
-              <div className="inline-flex h-9 overflow-hidden rounded-lg border border-slate-700 bg-slate-950" aria-label="Model mode">
-                {modelModes.map(mode => (
-                  <button
-                    key={mode.value}
-                    type="button"
-                    onClick={() => onModelModeChange?.(mode.value)}
-                    disabled={isLoading || isRagMode}
-                    className={`px-3 text-xs font-medium transition ${
-                      modelMode === mode.value
-                        ? 'bg-blue-600 text-white'
-                        : 'text-slate-300 hover:bg-slate-800 hover:text-white'
-                    } disabled:cursor-not-allowed disabled:opacity-50`}
-                    title={isRagMode ? 'Model mode is disabled while Internal Search is on' : mode.title}
-                    aria-pressed={modelMode === mode.value}
-                  >
-                    {mode.label}
-                  </button>
-                ))}
-              </div>
               <button
                 type="button"
                 onClick={onToggleRag}
